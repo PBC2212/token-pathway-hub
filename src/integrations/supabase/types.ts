@@ -14,7 +14,122 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      agreement_types: {
+        Row: {
+          cognito_form_url: string | null
+          created_at: string
+          description: string | null
+          display_order: number | null
+          id: string
+          is_active: boolean | null
+          name: string
+          requires_kyc: boolean | null
+        }
+        Insert: {
+          cognito_form_url?: string | null
+          created_at?: string
+          description?: string | null
+          display_order?: number | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          requires_kyc?: boolean | null
+        }
+        Update: {
+          cognito_form_url?: string | null
+          created_at?: string
+          description?: string | null
+          display_order?: number | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          requires_kyc?: boolean | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string
+          full_name: string | null
+          id: string
+          kyc_status: string | null
+          role: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          full_name?: string | null
+          id?: string
+          kyc_status?: string | null
+          role?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          full_name?: string | null
+          id?: string
+          kyc_status?: string | null
+          role?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_agreements: {
+        Row: {
+          agreement_type_id: string
+          approved_at: string | null
+          approved_by: string | null
+          cognito_submission_id: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          status: string | null
+          submitted_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          agreement_type_id: string
+          approved_at?: string | null
+          approved_by?: string | null
+          cognito_submission_id?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          status?: string | null
+          submitted_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          agreement_type_id?: string
+          approved_at?: string | null
+          approved_by?: string | null
+          cognito_submission_id?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          status?: string | null
+          submitted_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_agreements_agreement_type_id_fkey"
+            columns: ["agreement_type_id"]
+            isOneToOne: false
+            referencedRelation: "agreement_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
