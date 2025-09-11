@@ -147,10 +147,14 @@ const Dashboard = () => {
   };
 
   const getAgreementStatus = (agreementTypeId: string) => {
-    const userAgreement = userAgreements.find(
-      ua => ua.agreement_type_id === agreementTypeId
-    );
-    return userAgreement?.status || 'not_started';
+    const matches = userAgreements.filter(ua => ua.agreement_type_id === agreementTypeId);
+    if (!matches.length) return 'not_started';
+    const priority: Record<string, number> = { approved: 3, completed: 2, in_progress: 1, not_started: 0 };
+    return matches.reduce<string>((best, curr) => {
+      const currStatus = (curr.status || 'not_started') as string;
+      const bestStatus = (best || 'not_started') as string;
+      return (priority[currStatus] ?? 0) > (priority[bestStatus] ?? 0) ? currStatus : bestStatus;
+    }, 'not_started');
   };
 
   const getCompletionStats = () => {
