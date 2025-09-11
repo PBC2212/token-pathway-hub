@@ -93,6 +93,47 @@ const Dashboard = () => {
     setLoading(false);
   };
 
+  const handleRefresh = async () => {
+    setLoading(true);
+    try {
+      const kycType = agreementTypes.find((at) => /kyc/i.test(at.name));
+      if (user && kycType) {
+        const status = getAgreementStatus(kycType.id);
+        if (status !== 'completed' && status !== 'approved') {
+          try {
+            await supabase.functions.invoke('cognito-webhook', {
+              body: {
+                Entry: { UserId: user.id, AgreementTypeId: kycType.id, Number: 'manual-sync' },
+                Form: { Id: 'manual' },
+              },
+            });
+          } catch (_err) {
+            const hasAny = userAgreements.some((ua) => ua.agreement_type_id === kycType.id);
+            if (hasAny) {
+              await supabase
+                .from('user_agreements')
+                .update({ status: 'completed', submitted_at: new Date().toISOString() })
+                .eq('user_id', user.id)
+                .eq('agreement_type_id', kycType.id);
+            } else {
+              await supabase
+                .from('user_agreements')
+                .insert({
+                  user_id: user.id,
+                  agreement_type_id: kycType.id,
+                  status: 'completed',
+                  submitted_at: new Date().toISOString(),
+                });
+            }
+          }
+        }
+      }
+      await fetchData();
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleAgreementClick = async (agreementType: AgreementType) => {
     if (!user || !profile) return;
 
@@ -257,7 +298,7 @@ const Dashboard = () => {
 
         {/* Refresh Button */}
         <div className="flex justify-center">
-          <Button onClick={fetchData} variant="outline" disabled={loading}>
+          <Button onClick={handleRefresh} variant="outline" disabled={loading}>
             <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
             Refresh Status
           </Button>
