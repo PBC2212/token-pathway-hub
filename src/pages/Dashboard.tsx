@@ -100,14 +100,14 @@ const Dashboard = () => {
       if (user && kycType) {
         const status = getAgreementStatus(kycType.id);
         if (status !== 'completed' && status !== 'approved') {
-          try {
-            await supabase.functions.invoke('cognito-webhook', {
-              body: {
-                Entry: { UserId: user.id, AgreementTypeId: kycType.id, Number: 'manual-sync' },
-                Form: { Id: 'manual' },
-              },
-            });
-          } catch (_err) {
+          const { error: invokeError } = await supabase.functions.invoke('cognito-webhook', {
+            body: {
+              Entry: { UserId: user.id, AgreementTypeId: kycType.id, Number: 'manual-sync' },
+              Form: { Id: 'manual' },
+            },
+          });
+
+          if (invokeError) {
             const hasAny = userAgreements.some((ua) => ua.agreement_type_id === kycType.id);
             if (hasAny) {
               await supabase
