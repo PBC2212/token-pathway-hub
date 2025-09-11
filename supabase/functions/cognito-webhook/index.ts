@@ -17,40 +17,53 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    const payload = await req.json()
-    console.log('Cognito webhook received:', payload)
+    const payload = await req.json();
+    console.log('Cognito webhook received payload keys:', Object.keys(payload));
 
-    const userId = payload.Entry?.UserId
-    const agreementTypeId = payload.Entry?.AgreementTypeId
-    const cognitoEntryId = payload.Entry?.Number
+    const entry = payload.Entry ?? payload.entry ?? payload.data ?? payload;
+    const userId = entry?.UserId ?? entry?.userId ?? entry?.user_id ?? payload?.UserId ?? payload?.userId ?? payload?.user_id;
+    const agreementTypeId = entry?.AgreementTypeId ?? entry?.agreement_type_id ?? payload?.AgreementTypeId ?? payload?.agreement_type_id;
+    const cognitoEntryId = entry?.Number ?? entry?.EntryId ?? entry?.id ?? payload?.EntryId ?? payload?.id;
 
     if (!userId || !agreementTypeId) {
-      throw new Error('Missing required fields: userId or agreementTypeId')
+      console.error('Missing fields after parse', { userId, agreementTypeId, entryKeys: entry ? Object.keys(entry) : [] });
+      throw new Error('Missing required fields: userId or agreementTypeId');
     }
 
-    const { data, error } = await supabase
+    const { data: upserted, error: upsertError } = await supabase
       .from('user_agreements')
-      .upsert({
-        user_id: userId,
-        agreement_type_id: agreementTypeId,
-        status: 'completed',
-        submitted_at: new Date().toISOString(),
-        cognito_submission_id: cognitoEntryId
-      }, {
-        onConflict: 'user_id,agreement_type_id'
-      })
+      .upsert(
+        {
+          user_id: userId,
+          agreement_type_id: agreementTypeId,
+          status: 'completed',
+          submitted_at: new Date().toISOString(),
+          cognito_submission_id: cognitoEntryId,
+        },
+        { onConflict: 'user_id,agreement_type_id' }
+      )
+      .select();
 
-    if (error) throw error
+    if (upsertError) {
+      console.error('Upsert error:', upsertError)
+      throw upsertError
+    }
+
+    const userAgreementId = upserted?.[0]?.id
 
     // Also store the submission data
-    await supabase
+    const { error: submissionError } = await supabase
       .from('cognito_submissions')
       .insert({
-        user_agreement_id: data?.[0]?.id,
-        cognito_entry_id: cognitoEntryId,
-        cognito_form_id: payload.Form?.Id,
+        user_agreement_id: userAgreementId ?? null,
+        cognito_entry_id: String(cognitoEntryId ?? ''),
+        cognito_form_id: String(payload.Form?.Id ?? payload.form?.id ?? ''),
         submission_data: payload
       })
+
+    if (submissionError) {
+      console.error('Submission insert error:', submissionError)
+    }
 
     return new Response(
       JSON.stringify({ success: true, message: 'Agreement status updated' }),

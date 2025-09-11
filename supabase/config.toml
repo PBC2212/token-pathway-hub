@@ -1,1 +1,4 @@
 project_id = "fdbcuegidxvdanpoqztv"
+
+[functions.cognito-webhook]
+verify_jwt = false
