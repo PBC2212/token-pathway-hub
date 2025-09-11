@@ -20,6 +20,7 @@ export type Database = {
           created_at: string
           description: string | null
           display_order: number | null
+          help_text: string | null
           id: string
           is_active: boolean | null
           name: string
@@ -30,6 +31,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           display_order?: number | null
+          help_text?: string | null
           id?: string
           is_active?: boolean | null
           name: string
@@ -40,12 +42,51 @@ export type Database = {
           created_at?: string
           description?: string | null
           display_order?: number | null
+          help_text?: string | null
           id?: string
           is_active?: boolean | null
           name?: string
           requires_kyc?: boolean | null
         }
         Relationships: []
+      }
+      cognito_submissions: {
+        Row: {
+          cognito_entry_id: string
+          cognito_form_id: string
+          created_at: string | null
+          id: string
+          processed_at: string | null
+          submission_data: Json | null
+          user_agreement_id: string | null
+        }
+        Insert: {
+          cognito_entry_id: string
+          cognito_form_id: string
+          created_at?: string | null
+          id?: string
+          processed_at?: string | null
+          submission_data?: Json | null
+          user_agreement_id?: string | null
+        }
+        Update: {
+          cognito_entry_id?: string
+          cognito_form_id?: string
+          created_at?: string | null
+          id?: string
+          processed_at?: string | null
+          submission_data?: Json | null
+          user_agreement_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cognito_submissions_user_agreement_id_fkey"
+            columns: ["user_agreement_id"]
+            isOneToOne: false
+            referencedRelation: "user_agreements"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -135,7 +176,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_current_user_role: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never
