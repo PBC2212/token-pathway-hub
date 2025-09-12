@@ -199,6 +199,9 @@ const Index = () => {
             <Link to="/privacy-policy" className="text-muted-foreground hover:text-primary transition-colors">
               Privacy Policy
             </Link>
+            <Link to="/aml-policy" className="text-muted-foreground hover:text-primary transition-colors">
+              AML Policy
+            </Link>
           </div>
         </div>
       </footer>
