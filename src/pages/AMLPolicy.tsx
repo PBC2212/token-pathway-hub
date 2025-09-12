@@ -228,8 +228,7 @@ const AMLPolicy = () => {
                 </div>
                 <div className="bg-muted/50 p-4 rounded-lg">
                   <p className="font-semibold">AML Compliance Officer</p>
-                  <p className="text-muted-foreground">Email: compliance@tokenizationportal.com</p>
-                  <p className="text-muted-foreground">Phone: 1-800-COMPLIANCE (24/7 hotline)</p>
+                  <p className="text-muted-foreground">Email: info@imecapitaltokenization.com</p>
                   <p className="text-muted-foreground">Response time: Immediate for urgent matters</p>
                 </div>
                 <div>
