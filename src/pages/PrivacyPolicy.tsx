@@ -181,7 +181,7 @@ const PrivacyPolicy = () => {
                 </p>
                 <div className="bg-muted/50 p-4 rounded-lg">
                   <p className="font-semibold">Data Protection Officer</p>
-                  <p className="text-muted-foreground">Email: privacy@tokenizationportal.com</p>
+                  <p className="text-muted-foreground">Email: privacy@imecapitaltokenization.com</p>
                   <p className="text-muted-foreground">Response time: 72 hours for urgent matters, 30 days for standard requests</p>
                 </div>
               </CardContent>
