@@ -192,9 +192,14 @@ const Index = () => {
             <Shield className="h-8 w-8 text-primary mr-2" />
             <span className="text-xl font-bold">Tokenization Portal</span>
           </div>
-          <p className="text-muted-foreground">
+          <p className="text-muted-foreground mb-4">
             Secure digital agreements for real estate tokenization
           </p>
+          <div className="flex justify-center gap-6 text-sm">
+            <Link to="/privacy-policy" className="text-muted-foreground hover:text-primary transition-colors">
+              Privacy Policy
+            </Link>
+          </div>
         </div>
       </footer>
     </div>
