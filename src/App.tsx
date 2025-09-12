@@ -12,6 +12,14 @@ import LearnMore from "./pages/LearnMore";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import AMLPolicy from "./pages/AMLPolicy";
 import NotFound from "./pages/NotFound";
+import PropertyPledgeAgreement from "./pages/PropertyPledgeAgreement";
+import TokenIssuanceAgreement from "./pages/TokenIssuanceAgreement";
+import SubscriptionAgreement from "./pages/SubscriptionAgreement";
+import OperatingAgreement from "./pages/OperatingAgreement";
+import TokenHolderAgreement from "./pages/TokenHolderAgreement";
+import KYCAMLPolicy from "./pages/KYCAMLPolicy";
+import CustodyTokenizationPolicy from "./pages/CustodyTokenizationPolicy";
+import SwapSettlementAgreement from "./pages/SwapSettlementAgreement";
 
 const queryClient = new QueryClient();
 
@@ -30,6 +38,14 @@ const App = () => (
             <Route path="/learn-more" element={<LearnMore />} />
             <Route path="/privacy-policy" element={<PrivacyPolicy />} />
             <Route path="/aml-policy" element={<AMLPolicy />} />
+            <Route path="/property-pledge-agreement" element={<PropertyPledgeAgreement />} />
+            <Route path="/token-issuance-agreement" element={<TokenIssuanceAgreement />} />
+            <Route path="/subscription-agreement" element={<SubscriptionAgreement />} />
+            <Route path="/operating-agreement" element={<OperatingAgreement />} />
+            <Route path="/token-holder-agreement" element={<TokenHolderAgreement />} />
+            <Route path="/kyc-aml-policy" element={<KYCAMLPolicy />} />
+            <Route path="/custody-tokenization-policy" element={<CustodyTokenizationPolicy />} />
+            <Route path="/swap-settlement-agreement" element={<SwapSettlementAgreement />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

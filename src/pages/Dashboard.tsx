@@ -221,40 +221,106 @@ const Dashboard = () => {
           ))}
         </div>
 
-        {/* Quick Actions */}
+        {/* Agreement Documents */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Briefcase className="h-5 w-5" />
-              Next Steps
+              <FileText className="h-5 w-5" />
+              Agreement Documents
             </CardTitle>
             <CardDescription>
-              Complete these actions to proceed with your tokenization
+              Access and complete required tokenization agreements
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 border rounded-lg">
-                <div>
-                  <h3 className="font-medium">Complete KYC Verification</h3>
-                  <p className="text-sm text-muted-foreground">Verify your identity to access all features</p>
+            <div className="grid gap-4 md:grid-cols-2">
+              <Button 
+                variant="outline" 
+                className="h-auto p-4 justify-start"
+                onClick={() => window.location.href = '/property-pledge-agreement'}
+              >
+                <div className="text-left">
+                  <h3 className="font-medium">Property Pledge Agreement</h3>
+                  <p className="text-sm text-muted-foreground">Pledge property for tokenization</p>
                 </div>
-                <Button variant="outline" size="sm">Start KYC</Button>
-              </div>
-              <div className="flex items-center justify-between p-4 border rounded-lg">
-                <div>
-                  <h3 className="font-medium">Review Agreements</h3>
-                  <p className="text-sm text-muted-foreground">Access and complete required documentation</p>
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                className="h-auto p-4 justify-start"
+                onClick={() => window.location.href = '/token-issuance-agreement'}
+              >
+                <div className="text-left">
+                  <h3 className="font-medium">Token Issuance Agreement</h3>
+                  <p className="text-sm text-muted-foreground">Define token issuance terms</p>
                 </div>
-                <Button variant="outline" size="sm">View Docs</Button>
-              </div>
-              <div className="flex items-center justify-between p-4 border rounded-lg">
-                <div>
-                  <h3 className="font-medium">Contact Support</h3>
-                  <p className="text-sm text-muted-foreground">Get help with your tokenization process</p>
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                className="h-auto p-4 justify-start"
+                onClick={() => window.location.href = '/subscription-agreement'}
+              >
+                <div className="text-left">
+                  <h3 className="font-medium">Subscription Agreement</h3>
+                  <p className="text-sm text-muted-foreground">Subscribe to token offerings</p>
                 </div>
-                <Button variant="outline" size="sm">Get Help</Button>
-              </div>
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                className="h-auto p-4 justify-start"
+                onClick={() => window.location.href = '/operating-agreement'}
+              >
+                <div className="text-left">
+                  <h3 className="font-medium">Operating Agreement (SPV/LLC)</h3>
+                  <p className="text-sm text-muted-foreground">Entity operating structure</p>
+                </div>
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                className="h-auto p-4 justify-start"
+                onClick={() => window.location.href = '/token-holder-agreement'}
+              >
+                <div className="text-left">
+                  <h3 className="font-medium">Token Holder Agreement</h3>
+                  <p className="text-sm text-muted-foreground">Token holder rights and duties</p>
+                </div>
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                className="h-auto p-4 justify-start"
+                onClick={() => window.location.href = '/kyc-aml-policy'}
+              >
+                <div className="text-left">
+                  <h3 className="font-medium">KYC/AML Policy</h3>
+                  <p className="text-sm text-muted-foreground">Identity verification requirements</p>
+                </div>
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                className="h-auto p-4 justify-start"
+                onClick={() => window.location.href = '/custody-tokenization-policy'}
+              >
+                <div className="text-left">
+                  <h3 className="font-medium">Custody & Tokenization Policy</h3>
+                  <p className="text-sm text-muted-foreground">Asset custody and tokenization terms</p>
+                </div>
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                className="h-auto p-4 justify-start"
+                onClick={() => window.location.href = '/swap-settlement-agreement'}
+              >
+                <div className="text-left">
+                  <h3 className="font-medium">Swap/Settlement Agreement</h3>
+                  <p className="text-sm text-muted-foreground">Token trading and settlement terms</p>
+                </div>
+              </Button>
             </div>
           </CardContent>
         </Card>
