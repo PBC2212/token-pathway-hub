@@ -124,7 +124,7 @@ const Dashboard = () => {
           <div className="flex items-center gap-3">
             <Shield className="h-8 w-8 text-primary" />
             <div>
-              <h1 className="text-2xl font-bold">RWA Tokenization Platform</h1>
+              <h1 className="text-2xl font-bold">IME Capital Tokenization LLC</h1>
               <p className="text-muted-foreground">Welcome back, {profile?.full_name || user.email}</p>
             </div>
           </div>
@@ -343,6 +343,19 @@ const Dashboard = () => {
           </TabsContent>
         </Tabs>
       </div>
+      
+      {/* Footer */}
+      <footer className="bg-background border-t py-8 mt-12">
+        <div className="container mx-auto px-4 text-center">
+          <div className="flex items-center justify-center mb-4">
+            <Shield className="h-6 w-6 text-primary mr-2" />
+            <span className="text-lg font-semibold">IME Capital Tokenization LLC</span>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Complete real world asset tokenization solutions
+          </p>
+        </div>
+      </footer>
     </div>
   );
 };

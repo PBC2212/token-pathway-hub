@@ -56,6 +56,10 @@ const Index = () => {
               <Shield className="h-16 w-16 text-primary" />
             </div>
             
+            <div className="flex items-center justify-center mb-6">
+              <h2 className="text-2xl font-semibold text-primary">IME Capital Tokenization LLC</h2>
+            </div>
+            
             <h1 className="text-5xl lg:text-6xl font-bold tracking-tight">
               Complete <span className="text-primary">RWA Tokenization</span> Platform
             </h1>
@@ -193,7 +197,7 @@ const Index = () => {
         <div className="container mx-auto px-4 text-center">
           <div className="flex items-center justify-center mb-4">
             <Shield className="h-8 w-8 text-primary mr-2" />
-            <span className="text-xl font-bold">RWA Tokenization Platform</span>
+            <span className="text-xl font-bold">IME Capital Tokenization LLC</span>
           </div>
           <p className="text-muted-foreground mb-4">
             Complete real world asset tokenization solutions
