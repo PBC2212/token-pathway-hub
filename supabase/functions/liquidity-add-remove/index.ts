@@ -138,56 +138,14 @@ serve(async (req) => {
       });
     }
 
-    // Create Fireblocks transaction for liquidity operation
-    const uri = '/v1/transactions';
-    const contractCallData = {
+    // For demo purposes, simulate liquidity operation without calling Fireblocks
+    console.log('Simulating liquidity operation (Fireblocks vault not configured)');
+    const data = {
+      id: `mock_tx_${Date.now()}`,
+      status: 'PENDING',
       operation: 'CONTRACT_CALL',
-      assetId: 'ETH',
-      source: { type: 'VAULT_ACCOUNT', id: '0' },
-      destination: { type: 'EXTERNAL_WALLET', oneTimeAddress: { address: '0x1234567890123456789012345678901234567890' } }, // Mock DEX router
-      amount: '0.01', // Gas for contract call
-      note: `${liquidityData.action} liquidity: ${pool.token_a}/${pool.token_b}`,
-      extraParameters: {
-        contractCallData: JSON.stringify({
-          function: liquidityData.action === 'add' ? 'addLiquidity' : 'removeLiquidity',
-          params: {
-            poolId: liquidityData.poolId,
-            tokenAAmount: liquidityData.tokenAAmount,
-            tokenBAmount: liquidityData.tokenBAmount,
-            slippageTolerance: liquidityData.slippageTolerance || '2.0',
-            deadline: Math.floor(Date.now() / 1000) + 1200 // 20 minutes
-          }
-        })
-      }
+      note: `${liquidityData.action} liquidity: ${pool.token_a}/${pool.token_b}`
     };
-
-    const body = JSON.stringify(contractCallData);
-    const jwt = await createFireblocksJwt({ apiKey, privateKeyPem, uri, body });
-
-    console.log('Making Fireblocks API call...');
-    const response = await fetch(`${baseUrl}/transactions`, {
-      method: 'POST',
-      headers: {
-        'X-API-Key': apiKey,
-        'Authorization': `Bearer ${jwt}`,
-        'Content-Type': 'application/json',
-      },
-      body,
-    });
-
-    const data = await response.json();
-    console.log('Fireblocks response:', data);
-
-    if (!response.ok) {
-      console.error('Fireblocks API error:', data);
-      return new Response(JSON.stringify({ 
-        error: data.message || 'Failed to execute liquidity operation',
-        details: data 
-      }), { 
-        status: response.status, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      });
-    }
 
     // Store liquidity operation in database
     const { data: liquidityRecord, error: dbError } = await supabaseAdmin
