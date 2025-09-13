@@ -135,46 +135,19 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Get Fireblocks credentials
-    const apiKey = Deno.env.get('FIREBLOCKS_API_KEY');
-    const privateKeyPem = Deno.env.get('FIREBLOCKS_PRIVATE_KEY');
-    // Use base URL without "/v1" to avoid JWT uri mismatches; uri below already includes "/v1/..."
-    const rawBaseUrl = Deno.env.get('FIREBLOCKS_BASE_URL') || 'https://sandbox-api.fireblocks.io';
-    const baseUrl = rawBaseUrl.replace(/\/v1\/?$/, '');
-
-    if (!apiKey || !privateKeyPem) {
-      return new Response(
-        JSON.stringify({ error: 'Fireblocks credentials not configured' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // Convert amount to wei (assuming 18 decimals)
-    const amountInWei = (amount * Math.pow(10, 18)).toString();
-
-    // Prepare contract call data for mint function
-    // mint(address to, uint256 amount, string memory assetType, uint256 appraisedValue)
-    const abiEncoder = new TextEncoder();
-    const mintFunctionSelector = '0x8a1ba4dd'; // First 4 bytes of keccak256("mint(address,uint256,string,uint256)")
+    console.log('Simulating token minting operation (development mode)');
     
-    // This is a simplified approach - in production, you'd use a proper ABI encoder
-    const contractCallData = {
-      contractAddress,
-      functionName: 'mint',
-      parameters: [
-        { type: 'address', value: address },
-        { type: 'uint256', value: amountInWei },
-        { type: 'string', value: assetType },
-        { type: 'uint256', value: appraisedValue.toString() }
-      ]
-    };
-
-    // Create Fireblocks transaction
-    const transactionData = {
-      operation: 'CONTRACT_CALL',
+    // Mock Fireblocks mint transaction
+    const mockTransactionId = `mock_mint_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+    const fireblocksResult = {
+      id: mockTransactionId,
+      createdAt: Date.now(),
+      lastUpdated: Date.now(),
+      assetId: 'ETH',
       source: {
         type: 'VAULT_ACCOUNT',
-        id: '0' // Default vault ID - adjust as needed
+        id: '0',
+        name: 'Main Vault'
       },
       destination: {
         type: 'EXTERNAL_WALLET',
@@ -182,49 +155,26 @@ Deno.serve(async (req) => {
           address: contractAddress
         }
       },
-      amount: '0', // No ETH transfer, just contract call
-      assetId: 'ETH',
-      fee: 'HIGH',
+      amount: '0', // Contract call, no ETH transfer
+      networkFee: '0.002',
+      status: 'SUBMITTED',
+      txHash: '',
+      subStatus: 'PENDING_SIGNATURE',
+      operation: 'CONTRACT_CALL',
       note: `Minting ${amount} ${tokenSymbol} tokens for ${assetType} asset`,
       extraParameters: {
-        contractCallData: JSON.stringify(contractCallData)
+        contractCallData: {
+          contractAddress,
+          functionName: 'mint',
+          parameters: [
+            { type: 'address', value: address },
+            { type: 'uint256', value: (amount * Math.pow(10, 18)).toString() },
+            { type: 'string', value: assetType },
+            { type: 'uint256', value: appraisedValue.toString() }
+          ]
+        }
       }
     };
-
-    const uri = '/v1/transactions';
-    const body = JSON.stringify(transactionData);
-
-    // Create JWT for Fireblocks API
-    const jwt = await createFireblocksJwt({
-      apiKey,
-      privateKeyPem,
-      uri,
-      body
-    });
-
-    // Call Fireblocks API
-    const fireblocksResponse = await fetch(`${baseUrl}${uri}`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${jwt}`,
-        'Content-Type': 'application/json',
-        'X-API-Key': apiKey
-      },
-      body
-    });
-
-    const fireblocksResult = await fireblocksResponse.json();
-
-    if (!fireblocksResponse.ok) {
-      console.error('Fireblocks API error:', fireblocksResult);
-      return new Response(
-        JSON.stringify({ 
-          error: 'Failed to initiate mint transaction',
-          details: fireblocksResult 
-        }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
 
     // Store pledge record in Supabase
     const { data: pledge, error: pledgeError } = await supabase

@@ -95,33 +95,77 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    const apiKey = Deno.env.get('FIREBLOCKS_API_KEY');
-    const privateKeyPem = Deno.env.get('FIREBLOCKS_PRIVATE_KEY');
-    const baseUrl = Deno.env.get('FIREBLOCKS_BASE_URL') || 'https://api.fireblocks.io/v1';
+    console.log('Simulating Fireblocks get vaults operation (development mode)');
+    
+    // Mock vault data for development
+    const mockVaults = {
+      accounts: [
+        {
+          id: "0",
+          name: "Main Vault",
+          hiddenOnUI: false,
+          customerRefId: "main-vault-001",
+          autoFuel: true,
+          assets: [
+            {
+              id: "ETH",
+              total: "2.5",
+              available: "2.5",
+              pending: "0",
+              frozen: "0",
+              lockedAmount: "0"
+            },
+            {
+              id: "USDC", 
+              total: "10000.00",
+              available: "10000.00",
+              pending: "0",
+              frozen: "0", 
+              lockedAmount: "0"
+            },
+            {
+              id: "BTC",
+              total: "0.1",
+              available: "0.1",
+              pending: "0",
+              frozen: "0",
+              lockedAmount: "0"
+            }
+          ]
+        },
+        {
+          id: "1",
+          name: "RWA Vault",
+          hiddenOnUI: false,
+          customerRefId: "rwa-vault-001",
+          autoFuel: false,
+          assets: [
+            {
+              id: "ETH",
+              total: "1.0", 
+              available: "1.0",
+              pending: "0",
+              frozen: "0",
+              lockedAmount: "0"
+            },
+            {
+              id: "USDC",
+              total: "5000.00",
+              available: "5000.00", 
+              pending: "0",
+              frozen: "0",
+              lockedAmount: "0"
+            }
+          ]
+        }
+      ],
+      paging: {
+        before: null,
+        after: null
+      }
+    };
 
-    if (!apiKey) throw new Error('FIREBLOCKS_API_KEY not configured');
-    if (!privateKeyPem) throw new Error('FIREBLOCKS_PRIVATE_KEY not configured');
-
-    const uri = '/v1/vault/accounts_paged';
-    const body = '';
-    const jwt = await createFireblocksJwt({ apiKey, privateKeyPem, uri, body });
-
-    const response = await fetch(`${baseUrl}/vault/accounts_paged`, {
-      method: 'GET',
-      headers: {
-        'X-API-Key': apiKey,
-        'Authorization': `Bearer ${jwt}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    const data = await response.json();
-    if (!response.ok) {
-      console.error('Fireblocks API error (get vaults):', data);
-      return new Response(JSON.stringify({ error: data.message || 'Failed to fetch vaults' }), { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
-
-    return new Response(JSON.stringify(data), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify(mockVaults), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (error: any) {
     console.error('Error in fireblocks-get-vaults:', error);
     return new Response(JSON.stringify({ error: error.message || 'Internal Server Error' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });

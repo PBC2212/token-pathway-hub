@@ -103,43 +103,57 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    const apiKey = Deno.env.get('FIREBLOCKS_API_KEY');
-    const privateKeyPem = Deno.env.get('FIREBLOCKS_PRIVATE_KEY');
-    const baseUrl = Deno.env.get('FIREBLOCKS_BASE_URL') || 'https://api.fireblocks.io/v1';
-
-    if (!apiKey) throw new Error('FIREBLOCKS_API_KEY not configured');
-    if (!privateKeyPem) throw new Error('FIREBLOCKS_PRIVATE_KEY not configured');
-
     const transferData: TransferRequest = await req.json();
 
-    const uri = '/v1/transactions';
-    const body = JSON.stringify({
+    console.log('Simulating Fireblocks transfer operation (development mode)');
+    
+    // Mock transfer response
+    const mockTransactionId = `mock_tx_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+    const mockTransfer = {
+      id: mockTransactionId,
+      createdAt: Date.now(),
+      lastUpdated: Date.now(),
       assetId: transferData.assetId,
       source: transferData.source,
       destination: transferData.destination,
       amount: transferData.amount,
+      networkFee: "0.001",
+      netAmount: transferData.amount,
+      sourceAddress: "0x1234567890abcdef1234567890abcdef12345678",
+      destinationAddress: "0x9876543210fedcba9876543210fedcba98765432",
+      destinationAddressDescription: "",
+      destinationTag: "",
+      status: "SUBMITTED",
+      txHash: "",
+      subStatus: "PENDING_SIGNATURE",
+      signedBy: [],
+      createdBy: user.id,
+      rejectedBy: "",
+      amountUSD: "0.00",
+      addressType: "",
       note: transferData.note || 'Transfer initiated via RWA platform',
-    });
-
-    const jwt = await createFireblocksJwt({ apiKey, privateKeyPem, uri, body });
-
-    const response = await fetch(`${baseUrl}/transactions`, {
-      method: 'POST',
-      headers: {
-        'X-API-Key': apiKey,
-        'Authorization': `Bearer ${jwt}`,
-        'Content-Type': 'application/json',
+      exchangeTxId: "",
+      requestedAmount: transferData.amount,
+      serviceFee: "0",
+      fee: "0.001",
+      feeCurrency: transferData.assetId,
+      operation: "TRANSFER",
+      customerRefId: "",
+      numOfConfirmations: 0,
+      amountInfo: {
+        amount: transferData.amount,
+        requestedAmount: transferData.amount,
+        netAmount: transferData.amount,
+        amountUSD: "0.00"
       },
-      body,
-    });
+      feeInfo: {
+        networkFee: "0.001",
+        serviceFee: "0"
+      },
+      signedMessages: []
+    };
 
-    const data = await response.json();
-    if (!response.ok) {
-      console.error('Fireblocks API error (initiate transfer):', data);
-      return new Response(JSON.stringify({ error: data.message || 'Failed to initiate transfer' }), { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
-
-    return new Response(JSON.stringify(data), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify(mockTransfer), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (error: any) {
     console.error('Error in fireblocks-initiate-transfer:', error);
     return new Response(JSON.stringify({ error: error.message || 'Internal Server Error' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });

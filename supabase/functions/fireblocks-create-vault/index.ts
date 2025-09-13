@@ -103,34 +103,21 @@ serve(async (req) => {
 
     const { name, hiddenOnUI = false, customerRefId, autoFuel = false } = await req.json();
 
-    const apiKey = Deno.env.get('FIREBLOCKS_API_KEY');
-    const privateKeyPem = Deno.env.get('FIREBLOCKS_PRIVATE_KEY');
-    const baseUrl = Deno.env.get('FIREBLOCKS_BASE_URL') || 'https://api.fireblocks.io/v1';
+    console.log('Simulating Fireblocks create vault operation (development mode)');
+    
+    // Mock vault creation response
+    const mockVaultId = Math.floor(Math.random() * 1000).toString();
+    const mockVault = {
+      id: mockVaultId,
+      name: name || `Mock Vault ${mockVaultId}`,
+      hiddenOnUI: hiddenOnUI,
+      customerRefId: customerRefId || `mock-ref-${mockVaultId}`,
+      autoFuel: autoFuel,
+      assets: [],
+      created: new Date().toISOString()
+    };
 
-    if (!apiKey) throw new Error('FIREBLOCKS_API_KEY not configured');
-    if (!privateKeyPem) throw new Error('FIREBLOCKS_PRIVATE_KEY not configured');
-
-    const uri = '/v1/vault/accounts';
-    const body = JSON.stringify({ name, hiddenOnUI, customerRefId, autoFuel });
-    const jwt = await createFireblocksJwt({ apiKey, privateKeyPem, uri, body });
-
-    const response = await fetch(`${baseUrl}/vault/accounts`, {
-      method: 'POST',
-      headers: {
-        'X-API-Key': apiKey,
-        'Authorization': `Bearer ${jwt}`,
-        'Content-Type': 'application/json',
-      },
-      body,
-    });
-
-    const data = await response.json();
-    if (!response.ok) {
-      console.error('Fireblocks API error (create vault):', data);
-      return new Response(JSON.stringify({ error: data.message || 'Failed to create vault' }), { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
-
-    return new Response(JSON.stringify(data), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify(mockVault), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (error: any) {
     console.error('Error in fireblocks-create-vault:', error);
     return new Response(JSON.stringify({ error: error.message || 'Internal Server Error' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });

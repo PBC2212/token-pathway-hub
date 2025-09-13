@@ -97,33 +97,74 @@ serve(async (req) => {
 
     const { vaultId } = await req.json().catch(() => ({ vaultId: undefined }));
 
-    const apiKey = Deno.env.get('FIREBLOCKS_API_KEY');
-    const privateKeyPem = Deno.env.get('FIREBLOCKS_PRIVATE_KEY');
-    const baseUrl = Deno.env.get('FIREBLOCKS_BASE_URL') || 'https://api.fireblocks.io/v1';
+    console.log('Simulating Fireblocks get assets operation (development mode)');
+    
+    // Mock asset data for development
+    const mockAssets = vaultId ? {
+      id: vaultId,
+      name: `Mock Vault ${vaultId}`,
+      hiddenOnUI: false,
+      assets: [
+        {
+          id: "ETH",
+          total: "2.5",
+          available: "2.5",
+          pending: "0",
+          frozen: "0",
+          lockedAmount: "0",
+          address: "0x1234567890abcdef1234567890abcdef12345678",
+          tag: ""
+        },
+        {
+          id: "USDC",
+          total: "10000.00",
+          available: "10000.00", 
+          pending: "0",
+          frozen: "0",
+          lockedAmount: "0",
+          address: "0x1234567890abcdef1234567890abcdef12345678",
+          tag: ""
+        },
+        {
+          id: "BTC",
+          total: "0.1",
+          available: "0.1",
+          pending: "0",
+          frozen: "0",
+          lockedAmount: "0",
+          address: "bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh",
+          tag: ""
+        }
+      ]
+    } : {
+      accounts: [
+        {
+          id: "0",
+          name: "Main Vault",
+          hiddenOnUI: false,
+          assets: [
+            { id: "ETH", total: "2.5", available: "2.5" },
+            { id: "USDC", total: "10000.00", available: "10000.00" },
+            { id: "BTC", total: "0.1", available: "0.1" }
+          ]
+        },
+        {
+          id: "1", 
+          name: "RWA Vault",
+          hiddenOnUI: false,
+          assets: [
+            { id: "ETH", total: "1.0", available: "1.0" },
+            { id: "USDC", total: "5000.00", available: "5000.00" }
+          ]
+        }
+      ],
+      paging: {
+        before: null,
+        after: null
+      }
+    };
 
-    if (!apiKey) throw new Error('FIREBLOCKS_API_KEY not configured');
-    if (!privateKeyPem) throw new Error('FIREBLOCKS_PRIVATE_KEY not configured');
-
-    const uri = vaultId ? `/v1/vault/accounts/${vaultId}` : '/v1/vault/accounts_paged';
-    const body = '';
-    const jwt = await createFireblocksJwt({ apiKey, privateKeyPem, uri, body });
-
-    const response = await fetch(`${baseUrl}${vaultId ? `/vault/accounts/${vaultId}` : '/vault/accounts_paged'}`, {
-      method: 'GET',
-      headers: {
-        'X-API-Key': apiKey,
-        'Authorization': `Bearer ${jwt}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    const data = await response.json();
-    if (!response.ok) {
-      console.error('Fireblocks API error (get assets):', data);
-      return new Response(JSON.stringify({ error: data.message || 'Failed to fetch assets' }), { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-    }
-
-    return new Response(JSON.stringify(data), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify(mockAssets), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (error: any) {
     console.error('Error in fireblocks-get-assets:', error);
     return new Response(JSON.stringify({ error: error.message || 'Internal Server Error' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
