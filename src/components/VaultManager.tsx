@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import { Vault, Wallet, ArrowRightLeft, Plus, Shield } from 'lucide-react';
 
 interface VaultData {
@@ -30,6 +31,7 @@ interface AssetData {
 
 const VaultManager = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [vaults, setVaults] = useState<VaultData[]>([]);
   const [selectedVault, setSelectedVault] = useState<VaultData | null>(null);
   const [assets, setAssets] = useState<AssetData[]>([]);
@@ -49,6 +51,7 @@ const VaultManager = () => {
   const [transferNote, setTransferNote] = useState('');
 
   const fetchVaults = async () => {
+    if (!user) return;
     try {
       setLoading(true);
       const { data, error } = await supabase.functions.invoke('fireblocks-get-vaults');
@@ -77,6 +80,7 @@ const VaultManager = () => {
   };
 
   const fetchAssets = async (vaultId: string) => {
+    if (!user) return;
     try {
       const { data, error } = await supabase.functions.invoke('fireblocks-get-assets', {
         body: { vaultId }
@@ -99,6 +103,14 @@ const VaultManager = () => {
   };
 
   const createVault = async () => {
+    if (!user) {
+      toast({
+        title: "Sign in required",
+        description: "Please sign in to create a vault.",
+        variant: "destructive",
+      });
+      return;
+    }
     try {
       setLoading(true);
       const { data, error } = await supabase.functions.invoke('fireblocks-create-vault', {
@@ -139,6 +151,14 @@ const VaultManager = () => {
 
   const initiateTransfer = async () => {
     if (!selectedVault) return;
+    if (!user) {
+      toast({
+        title: "Sign in required",
+        description: "Please sign in to initiate a transfer.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     try {
       setLoading(true);
@@ -186,8 +206,8 @@ const VaultManager = () => {
   };
 
   useEffect(() => {
-    fetchVaults();
-  }, []);
+    if (user) fetchVaults();
+  }, [user]);
 
   useEffect(() => {
     if (selectedVault) {
