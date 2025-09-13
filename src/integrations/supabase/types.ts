@@ -237,6 +237,18 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      is_service_role_or_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      update_user_token_balance: {
+        Args: {
+          p_new_balance: number
+          p_token_symbol: string
+          p_user_address: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never

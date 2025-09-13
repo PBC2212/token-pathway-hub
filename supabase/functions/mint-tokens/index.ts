@@ -242,15 +242,12 @@ Deno.serve(async (req) => {
       // Don't fail the entire request if pledge storage fails
     }
 
-    // Update or insert token balance
-    const { error: balanceError } = await supabase
-      .from('token_balances')
-      .upsert({
-        user_address: address,
-        token_symbol: tokenSymbol,
-        balance: amount // This should be updated from actual blockchain query in production
-      }, {
-        onConflict: 'user_address,token_symbol'
+    // Update token balance using secure function
+    const { data: balanceResult, error: balanceError } = await supabase
+      .rpc('update_user_token_balance', {
+        p_user_address: address,
+        p_token_symbol: tokenSymbol,
+        p_new_balance: amount
       });
 
     if (balanceError) {
