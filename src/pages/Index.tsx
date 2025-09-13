@@ -15,23 +15,23 @@ const Index = () => {
   const features = [
     {
       icon: Shield,
-      title: "Secure Digital Agreements",
-      description: "Industry-standard security and compliance for all your tokenization documents"
+      title: "End-to-End Tokenization",
+      description: "Complete asset digitization from legal structuring to token issuance and distribution"
     },
     {
       icon: FileCheck,
-      title: "Streamlined KYC/AML",
-      description: "Complete your verification process quickly and securely with our integrated forms"
+      title: "Automated Compliance",
+      description: "Built-in KYC/AML verification and regulatory compliance for seamless onboarding"
     },
     {
       icon: Lock,
-      title: "Regulatory Compliance",
-      description: "All agreements meet current regulatory requirements for asset tokenization"
+      title: "Institutional Grade Security",
+      description: "Bank-level security infrastructure protecting your assets and investor data"
     },
     {
       icon: Users,
-      title: "Multi-Party Coordination",
-      description: "Coordinate between investors, property owners, and service providers seamlessly"
+      title: "Investor Management",
+      description: "Comprehensive dashboard for managing investors, distributions, and communications"
     }
   ];
 
@@ -57,12 +57,12 @@ const Index = () => {
             </div>
             
             <h1 className="text-5xl lg:text-6xl font-bold tracking-tight">
-              Tokenization <span className="text-primary">Agreements Portal</span>
+              Complete <span className="text-primary">RWA Tokenization</span> Platform
             </h1>
             
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
-              Secure, compliant, and streamlined digital agreements for real estate tokenization. 
-              Complete your onboarding with confidence through our integrated platform.
+              Transform real world assets into digital tokens with our comprehensive platform. 
+              From property tokenization to investor onboarding - we handle the entire process.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mt-10">
@@ -85,10 +85,10 @@ const Index = () => {
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
             <h2 className="text-3xl lg:text-4xl font-bold mb-4">
-              Why Choose Our Platform?
+              Complete RWA Tokenization Suite
             </h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              Built specifically for real estate tokenization with security, compliance, and user experience in mind
+              Everything you need to tokenize real world assets - from legal compliance to token distribution and ongoing management
             </p>
           </div>
 
@@ -118,26 +118,29 @@ const Index = () => {
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div className="space-y-6">
               <h2 className="text-3xl lg:text-4xl font-bold">
-                Streamlined Tokenization Process
+                Asset Tokenization Made Simple
               </h2>
               <p className="text-lg text-muted-foreground">
-                Our platform guides you through each step of the tokenization process, 
-                ensuring all legal requirements are met while maintaining the highest 
-                standards of security and compliance.
+                Our comprehensive platform handles every aspect of real world asset tokenization, 
+                from initial structuring to ongoing token management and investor relations.
               </p>
               
               <div className="space-y-4">
                 <div className="flex items-center gap-3">
                   <CheckCircle className="h-6 w-6 text-primary" />
-                  <span className="text-lg">Complete KYC/AML verification</span>
+                  <span className="text-lg">Asset valuation and legal structuring</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <CheckCircle className="h-6 w-6 text-primary" />
-                  <span className="text-lg">Sign all required agreements</span>
+                  <span className="text-lg">Automated investor onboarding and KYC</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <CheckCircle className="h-6 w-6 text-primary" />
-                  <span className="text-lg">Receive token allocation</span>
+                  <span className="text-lg">Token issuance and distribution</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <CheckCircle className="h-6 w-6 text-primary" />
+                  <span className="text-lg">Ongoing asset and investor management</span>
                 </div>
               </div>
             </div>
@@ -146,10 +149,10 @@ const Index = () => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <FileCheck className="h-6 w-6" />
-                  Required Agreements
+                  Platform Services
                 </CardTitle>
                 <CardDescription>
-                  Complete these documents to finalize your tokenization onboarding
+                  Comprehensive documentation and agreements for complete tokenization
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -170,10 +173,10 @@ const Index = () => {
         <div className="container mx-auto px-4 text-center">
           <div className="max-w-2xl mx-auto space-y-6">
             <h2 className="text-3xl lg:text-4xl font-bold">
-              Ready to Get Started?
+              Ready to Tokenize Your Assets?
             </h2>
             <p className="text-lg text-muted-foreground">
-              Join our secure platform and complete your tokenization agreements today
+              Join the future of asset ownership with our comprehensive tokenization platform
             </p>
             <Button asChild size="lg" className="text-lg px-8 py-6">
               <Link to="/auth">
@@ -190,10 +193,10 @@ const Index = () => {
         <div className="container mx-auto px-4 text-center">
           <div className="flex items-center justify-center mb-4">
             <Shield className="h-8 w-8 text-primary mr-2" />
-            <span className="text-xl font-bold">Tokenization Portal</span>
+            <span className="text-xl font-bold">RWA Tokenization Platform</span>
           </div>
           <p className="text-muted-foreground mb-4">
-            Secure digital agreements for real estate tokenization
+            Complete real world asset tokenization solutions
           </p>
           <div className="flex justify-center gap-6 text-sm">
             <Link to="/privacy-policy" className="text-muted-foreground hover:text-primary transition-colors">
