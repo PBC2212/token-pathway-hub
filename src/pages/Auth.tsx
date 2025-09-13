@@ -57,7 +57,7 @@ const Auth = () => {
             <Shield className="h-12 w-12 text-primary" />
           </div>
           <h1 className="text-2xl font-bold">Tokenization Portal</h1>
-          <p className="text-muted-foreground">Secure access to your tokenization agreements</p>
+          <p className="text-muted-foreground">Secure access to your digital asset platform</p>
         </div>
 
         <Card className="border-border/50 shadow-lg">
