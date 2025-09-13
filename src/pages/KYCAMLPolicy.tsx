@@ -2,9 +2,26 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
 
 const KYCAMLPolicy = () => {
   const navigate = useNavigate();
+
+  useEffect(() => {
+    // Load Cognito Forms iframe script
+    const script = document.createElement('script');
+    script.src = 'https://www.cognitoforms.com/f/iframe.js';
+    script.async = true;
+    document.head.appendChild(script);
+
+    return () => {
+      // Cleanup script on unmount
+      const existingScript = document.querySelector('script[src="https://www.cognitoforms.com/f/iframe.js"]');
+      if (existingScript) {
+        existingScript.remove();
+      }
+    };
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5">
@@ -22,12 +39,16 @@ const KYCAMLPolicy = () => {
         
         <Card>
           <CardHeader>
-            <CardTitle className="text-2xl">KYC/AML Policy</CardTitle>
+            <CardTitle className="text-2xl">KYC/AML Policy & Compliance Form</CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground">
-              This page will contain the KYC/AML Policy form. Content will be added soon.
-            </p>
+          <CardContent className="p-0">
+            <iframe 
+              src="https://www.cognitoforms.com/f/Z3KEFA9eyUCar-acXrCyqg/8" 
+              allow="payment" 
+              style={{border: 0, width: '100%'}} 
+              height="1743"
+              title="KYC/AML Compliance Form"
+            />
           </CardContent>
         </Card>
       </div>
