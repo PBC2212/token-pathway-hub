@@ -49,6 +49,31 @@ Factory contract for deploying and managing asset token contracts:
 - **Asset type categorization**
 - **Contract status management** (active/inactive)
 
+### Pledge/Escrow System Contracts
+
+#### 1. PledgeFactory.sol
+Factory contract for deploying complete pledge systems:
+- **System deployment** (NFT + Escrow contracts)
+- **Configuration management** for asset token integration
+- **Status control** for individual pledge systems
+- **Emergency controls** and system-wide management
+
+#### 2. PledgeEscrow.sol
+Main escrow contract managing asset pledges and token lifecycle:
+- **Pledge creation** with asset metadata and documentation
+- **Approval workflow** with LTV (loan-to-value) controls
+- **Token minting** integration with asset token contracts
+- **Redemption process** with token burning and NFT return
+- **Default management** for non-performing pledges
+
+#### 3. PledgeNFT.sol
+NFT contract representing ownership of pledged physical assets:
+- **Asset representation** as unique NFTs with metadata
+- **Document storage** with IPFS integration and hash verification
+- **Appraised value** tracking with re-appraisal functionality
+- **Escrow integration** with secure transfer mechanisms
+- **Ownership history** and provenance tracking
+
 ### Liquidity Pool Contracts
 
 #### 1. LiquidityPoolFactory.sol
@@ -80,6 +105,9 @@ Interface defining standard metadata functionality across all asset tokens.
 #### ILiquidityPool.sol
 Interface defining standard liquidity pool operations and data structures.
 
+#### IPledgeEscrow.sol
+Interface defining pledge escrow operations, status management, and integration points.
+
 ## Features
 
 ### Asset Tokenization Features
@@ -88,6 +116,13 @@ Interface defining standard liquidity pool operations and data structures.
 - **Transfer restrictions** for regulatory compliance
 - **Supply cap management** with dynamic adjustments
 - **Pausable functionality** for emergency situations
+
+### Pledge/Escrow Features
+- **Physical asset custody** through NFT representation
+- **Document verification** with cryptographic hashing
+- **Approval workflows** with configurable LTV ratios
+- **Default management** with time-based triggers
+- **Integration with token minting** for seamless asset-to-token conversion
 
 ### Liquidity Pool Features
 - **Automated Market Making** using constant product formula

@@ -62,6 +62,12 @@ async function main() {
   const liquidityFactory = await LiquidityPoolFactory.deploy();
   await liquidityFactory.deployed();
   console.log("LiquidityPoolFactory deployed to:", liquidityFactory.address);
+
+  // Deploy Pledge Factory
+  const PledgeFactory = await ethers.getContractFactory("PledgeFactory");
+  const pledgeFactory = await PledgeFactory.deploy();
+  await pledgeFactory.deployed();
+  console.log("PledgeFactory deployed to:", pledgeFactory.address);
   
   // Verify contracts on block explorer
   if (network.name !== "localhost") {
@@ -74,9 +80,18 @@ async function main() {
       address: liquidityFactory.address,
       constructorArguments: [],
     });
+
+    await run("verify:verify", {
+      address: pledgeFactory.address,
+      constructorArguments: [],
+    });
   }
   
-  return { assetFactory: assetFactory.address, liquidityFactory: liquidityFactory.address };
+  return { 
+    assetFactory: assetFactory.address, 
+    liquidityFactory: liquidityFactory.address,
+    pledgeFactory: pledgeFactory.address 
+  };
 }
 ```
 
@@ -117,7 +132,49 @@ async function main() {
 }
 ```
 
-#### Step 3c: Create Initial Liquidity Pools
+#### Step 3c: Deploy Pledge System
+
+```javascript
+// scripts/03-deploy-pledge-system.js
+async function main() {
+  const pledgeFactoryAddress = "0x..."; // From step 3a
+  const factory = await ethers.getContractAt("PledgeFactory", pledgeFactoryAddress);
+  
+  // Deploy main pledge system
+  const deployTx = await factory.deployPledgeSystem(
+    "Main Asset Pledge System",
+    "Pledged Assets NFT",
+    "PANFT"
+  );
+  const receipt = await deployTx.wait();
+  console.log("Pledge system deployed");
+  
+  // Get the deployed contract addresses from events
+  const event = receipt.events.find(e => e.event === "PledgeSystemDeployed");
+  const escrowAddress = event.args.escrow;
+  const nftAddress = event.args.nft;
+  
+  console.log("Escrow contract:", escrowAddress);
+  console.log("NFT contract:", nftAddress);
+  
+  // Configure asset token integration
+  const tokenAddresses = await getDeployedTokens(); // Helper function
+  const tokenContracts = [
+    tokenAddresses.realEstate,
+    tokenAddresses.gold,
+    tokenAddresses.vehicle,
+    tokenAddresses.art,
+    tokenAddresses.equipment,
+    tokenAddresses.commodity
+  ];
+  const assetTypes = [0, 1, 2, 3, 4, 5]; // Enum values
+  
+  await factory.configureAssetTokens(escrowAddress, tokenContracts, assetTypes);
+  console.log("Asset token integration configured");
+}
+```
+
+#### Step 3d: Create Initial Liquidity Pools
 
 ```javascript
 // scripts/03-deploy-liquidity-pools.js
@@ -158,6 +215,9 @@ npx hardhat verify --network mainnet 0x[ASSET_FACTORY_ADDRESS] 0x[ADMIN_ADDRESS]
 # Verify liquidity factory
 npx hardhat verify --network mainnet 0x[LIQUIDITY_FACTORY_ADDRESS]
 
+# Verify pledge factory
+npx hardhat verify --network mainnet 0x[PLEDGE_FACTORY_ADDRESS]
+
 # Get deployed contract addresses from factories
 npx hardhat run scripts/get-deployed-contracts.js --network mainnet
 
@@ -165,6 +225,11 @@ npx hardhat run scripts/get-deployed-contracts.js --network mainnet
 npx hardhat verify --network mainnet 0x[RET_ADDRESS] 0x[ADMIN_ADDRESS]
 npx hardhat verify --network mainnet 0x[GLD_ADDRESS] 0x[ADMIN_ADDRESS]
 # ... etc for each token
+
+# Verify pledge system contracts
+npx hardhat run scripts/get-deployed-pledge-systems.js --network mainnet
+npx hardhat verify --network mainnet 0x[PLEDGE_ESCROW_ADDRESS] 0x[NFT_ADDRESS]
+npx hardhat verify --network mainnet 0x[PLEDGE_NFT_ADDRESS] "Pledged Assets NFT" "PANFT"
 
 # Verify liquidity pools (get addresses from factory events)
 npx hardhat run scripts/get-deployed-pools.js --network mainnet
@@ -213,6 +278,10 @@ const CONTRACT_ADDRESSES = {
   equipment: "0x...",   // Deployed EQT address
   commodity: "0x..."    // Deployed COM address
 };
+
+// Update pledge system edge functions
+// supabase/functions/create-pledge/index.ts
+const PLEDGE_ESCROW_ADDRESS = "0x..."; // Deployed pledge escrow address
 
 // Update liquidity pool edge functions
 // supabase/functions/liquidity-create-pool/index.ts
@@ -270,17 +339,20 @@ Before going live, verify:
 Final deployment to mainnet:
 
 ```bash
-# Deploy factories (asset and liquidity)
+# Deploy factories (asset, liquidity, and pledge)
 npx hardhat run scripts/01-deploy-factories.js --network mainnet
 
 # Deploy tokens via asset factory
 npx hardhat run scripts/02-deploy-tokens.js --network mainnet
 
+# Deploy pledge system
+npx hardhat run scripts/03-deploy-pledge-system.js --network mainnet
+
 # Create initial liquidity pools
-npx hardhat run scripts/03-deploy-liquidity-pools.js --network mainnet
+npx hardhat run scripts/04-deploy-liquidity-pools.js --network mainnet
 
 # Configure roles and permissions
-npx hardhat run scripts/04-configure-roles.js --network mainnet
+npx hardhat run scripts/05-configure-roles.js --network mainnet
 
 # Run integration tests
 npx hardhat test test/integration/deployment.test.js --network mainnet
@@ -307,12 +379,18 @@ After deployment, maintain a registry:
   "contracts": {
     "assetFactory": "0x...",
     "liquidityFactory": "0x...",
+    "pledgeFactory": "0x...",
     "realEstateToken": "0x...",
     "goldToken": "0x...",
     "vehicleToken": "0x...",
     "artToken": "0x...",
     "equipmentToken": "0x...",
     "commodityToken": "0x..."
+  },
+  "pledgeSystem": {
+    "escrowContract": "0x...",
+    "nftContract": "0x...",
+    "name": "Main Asset Pledge System"
   },
   "liquidityPools": {
     "RET/USDC": "0x...",
@@ -325,7 +403,8 @@ After deployment, maintain a registry:
   "roles": {
     "admin": "0x...",
     "minter": "0x...",
-    "compliance": "0x..."
+    "compliance": "0x...",
+    "pledgeApprover": "0x..."
   }
 }
 ```
