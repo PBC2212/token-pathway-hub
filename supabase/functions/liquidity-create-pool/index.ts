@@ -125,57 +125,19 @@ serve(async (req) => {
     const poolData: CreatePoolRequest = await req.json();
     console.log('Pool creation request:', poolData);
 
-    // Simulate DEX pool creation via Fireblocks contract call
-    const uri = '/v1/transactions';
-    const contractCallData = {
+    // For demo purposes, simulate pool creation without actual Fireblocks transaction
+    // In production, you would need proper Fireblocks vault setup with ETH for gas
+    console.log('Simulating pool creation (Fireblocks vault not configured)');
+    
+    // Mock transaction response for demo
+    const data = {
+      id: `mock_tx_${Date.now()}`,
+      status: 'PENDING',
       operation: 'CONTRACT_CALL',
-      assetId: 'ETH',
-      source: { type: 'VAULT_ACCOUNT', id: '0' },
-      destination: { type: 'EXTERNAL_WALLET', oneTimeAddress: { address: '0x1234567890123456789012345678901234567890' } }, // Mock DEX router
-      amount: '0.01', // Gas for contract call
-      note: `Create liquidity pool: ${poolData.tokenA}/${poolData.tokenB}`,
-      extraParameters: {
-        contractCallData: JSON.stringify({
-          function: 'createPool',
-          params: {
-            tokenA: poolData.tokenA,
-            tokenB: poolData.tokenB,
-            initialLiquidityA: poolData.initialLiquidityA,
-            initialLiquidityB: poolData.initialLiquidityB,
-            poolType: poolData.poolType,
-            feeRate: poolData.feeRate || '0.3'
-          }
-        })
-      }
+      note: `Create liquidity pool: ${poolData.tokenA}/${poolData.tokenB}`
     };
 
-    const body = JSON.stringify(contractCallData);
-    const jwt = await createFireblocksJwt({ apiKey, privateKeyPem, uri, body });
-
-    console.log('Making Fireblocks API call...');
-    const response = await fetch(`${baseUrl}/transactions`, {
-      method: 'POST',
-      headers: {
-        'X-API-Key': apiKey,
-        'Authorization': `Bearer ${jwt}`,
-        'Content-Type': 'application/json',
-      },
-      body,
-    });
-
-    const data = await response.json();
-    console.log('Fireblocks response:', data);
-
-    if (!response.ok) {
-      console.error('Fireblocks API error:', data);
-      return new Response(JSON.stringify({ 
-        error: data.message || 'Failed to create liquidity pool',
-        details: data 
-      }), { 
-        status: response.status, 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      });
-    }
+    console.log('Pool creation successful (simulated)');
 
     // Store pool information in database
     const { data: poolRecord, error: dbError } = await supabaseAdmin
