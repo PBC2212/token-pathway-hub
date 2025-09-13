@@ -124,12 +124,19 @@ serve(async (req) => {
     const liquidityData: LiquidityRequest = await req.json();
     console.log('Liquidity operation request:', liquidityData);
 
+    if (!liquidityData.poolId) {
+      return new Response(JSON.stringify({ error: 'Invalid request: poolId is required' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
     // Get pool information
     const { data: pool, error: poolError } = await supabaseAdmin
       .from('liquidity_pools')
       .select('*')
       .eq('id', liquidityData.poolId)
-      .single();
+      .maybeSingle();
 
     if (poolError || !pool) {
       return new Response(JSON.stringify({ error: 'Pool not found' }), { 
