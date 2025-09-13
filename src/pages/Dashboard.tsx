@@ -5,7 +5,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { LogOut, Shield, FileText, Users, Building, Briefcase, User, Mail, Calendar } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import VaultManager from '@/components/VaultManager';
+import { LogOut, Shield, FileText, Users, Building, Briefcase, User, Mail, Calendar, Vault, Settings } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 interface Profile {
@@ -122,7 +124,7 @@ const Dashboard = () => {
           <div className="flex items-center gap-3">
             <Shield className="h-8 w-8 text-primary" />
             <div>
-              <h1 className="text-2xl font-bold">Tokenization Portal</h1>
+              <h1 className="text-2xl font-bold">RWA Tokenization Platform</h1>
               <p className="text-muted-foreground">Welcome back, {profile?.full_name || user.email}</p>
             </div>
           </div>
@@ -133,197 +135,213 @@ const Dashboard = () => {
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-8 space-y-8">
-        {/* User Profile Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <User className="h-5 w-5" />
-              Your Profile
-            </CardTitle>
-            <CardDescription>
-              Your account information and verification status
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <User className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm font-medium">Full Name</p>
-                    <p className="text-sm text-muted-foreground">{profile?.full_name || 'Not provided'}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Mail className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm font-medium">Email</p>
-                    <p className="text-sm text-muted-foreground">{profile?.email}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <p className="text-sm font-medium">Member Since</p>
-                    <p className="text-sm text-muted-foreground">
-                      {profile?.created_at ? new Date(profile.created_at).toLocaleDateString() : 'Unknown'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="space-y-3">
-                <div>
-                  <p className="text-sm font-medium mb-2">Account Role</p>
-                  {profile?.role && getRoleBadge(profile.role)}
-                </div>
-                <div>
-                  <p className="text-sm font-medium mb-2">KYC Status</p>
-                  {profile?.kyc_status && getKYCStatusBadge(profile.kyc_status)}
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="container mx-auto px-4 py-8">
+        <Tabs defaultValue="overview" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="vaults">Vaults</TabsTrigger>
+            <TabsTrigger value="documents">Documents</TabsTrigger>
+            <TabsTrigger value="profile">Profile</TabsTrigger>
+          </TabsList>
 
-        {/* Welcome Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-2xl">Welcome to Your Dashboard</CardTitle>
-            <CardDescription>
-              Your secure platform for real estate tokenization agreements and documentation
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground">
-              This is your central hub for managing tokenization agreements, completing KYC verification, 
-              and coordinating with all stakeholders in your real estate tokenization journey.
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* Features Grid */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-          {features.map((feature, index) => (
-            <Card key={index} className="text-center hover:shadow-md transition-shadow">
+          <TabsContent value="overview" className="space-y-6">
+            {/* Welcome Section */}
+            <Card>
               <CardHeader>
-                <div className="mx-auto mb-4 p-3 bg-primary/10 rounded-full w-fit">
-                  <feature.icon className="h-6 w-6 text-primary" />
-                </div>
-                <CardTitle className="text-lg">{feature.title}</CardTitle>
+                <CardTitle className="text-2xl">Welcome to Your Platform</CardTitle>
+                <CardDescription>
+                  Your complete RWA tokenization platform for asset management and digital transformation
+                </CardDescription>
               </CardHeader>
               <CardContent>
-                <CardDescription>
-                  {feature.description}
-                </CardDescription>
+                <p className="text-muted-foreground">
+                  Access your secure platform for tokenizing real-world assets, managing Fireblocks vaults, 
+                  completing documentation, and coordinating with all stakeholders in your tokenization journey.
+                </p>
               </CardContent>
             </Card>
-          ))}
-        </div>
 
-        {/* Agreement Documents */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              Onboarding Documents
-            </CardTitle>
-            <CardDescription>
-              Access and complete required onboarding documentation
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 md:grid-cols-2">
-              <Button 
-                variant="outline" 
-                className="h-auto p-4 justify-start"
-                onClick={() => window.location.href = '/property-pledge-agreement'}
-              >
-                <div className="text-left">
-                  <h3 className="font-medium">Property Pledge Agreement</h3>
-                  <p className="text-sm text-muted-foreground">Pledge property for tokenization</p>
-                </div>
-              </Button>
-              
-              <Button 
-                variant="outline" 
-                className="h-auto p-4 justify-start"
-                onClick={() => window.location.href = '/token-issuance-agreement'}
-              >
-                <div className="text-left">
-                  <h3 className="font-medium">Token Issuance Agreement</h3>
-                  <p className="text-sm text-muted-foreground">Define token issuance terms</p>
-                </div>
-              </Button>
-              
-              <Button 
-                variant="outline" 
-                className="h-auto p-4 justify-start"
-                onClick={() => window.location.href = '/subscription-agreement'}
-              >
-                <div className="text-left">
-                  <h3 className="font-medium">Subscription Agreement</h3>
-                  <p className="text-sm text-muted-foreground">Subscribe to token offerings</p>
-                </div>
-              </Button>
-              
-              <Button 
-                variant="outline" 
-                className="h-auto p-4 justify-start"
-                onClick={() => window.location.href = '/operating-agreement'}
-              >
-                <div className="text-left">
-                  <h3 className="font-medium">Operating Agreement (SPV/LLC)</h3>
-                  <p className="text-sm text-muted-foreground">Entity operating structure</p>
-                </div>
-              </Button>
-              
-              <Button 
-                variant="outline" 
-                className="h-auto p-4 justify-start"
-                onClick={() => window.location.href = '/token-holder-agreement'}
-              >
-                <div className="text-left">
-                  <h3 className="font-medium">Token Holder Agreement</h3>
-                  <p className="text-sm text-muted-foreground">Token holder rights and duties</p>
-                </div>
-              </Button>
-              
-              <Button 
-                variant="outline" 
-                className="h-auto p-4 justify-start"
-                onClick={() => window.location.href = '/kyc-aml-policy'}
-              >
-                <div className="text-left">
-                  <h3 className="font-medium">KYC/AML Policy</h3>
-                  <p className="text-sm text-muted-foreground">Identity verification requirements</p>
-                </div>
-              </Button>
-              
-              <Button 
-                variant="outline" 
-                className="h-auto p-4 justify-start"
-                onClick={() => window.location.href = '/custody-tokenization-policy'}
-              >
-                <div className="text-left">
-                  <h3 className="font-medium">Custody & Tokenization Policy</h3>
-                  <p className="text-sm text-muted-foreground">Asset custody and tokenization terms</p>
-                </div>
-              </Button>
-              
-              <Button 
-                variant="outline" 
-                className="h-auto p-4 justify-start"
-                onClick={() => window.location.href = '/swap-settlement-agreement'}
-              >
-                <div className="text-left">
-                  <h3 className="font-medium">Swap/Settlement Agreement</h3>
-                  <p className="text-sm text-muted-foreground">Token trading and settlement terms</p>
-                </div>
-              </Button>
+            {/* Features Grid */}
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+              {features.map((feature, index) => (
+                <Card key={index} className="text-center hover:shadow-md transition-shadow">
+                  <CardHeader>
+                    <div className="mx-auto mb-4 p-3 bg-primary/10 rounded-full w-fit">
+                      <feature.icon className="h-6 w-6 text-primary" />
+                    </div>
+                    <CardTitle className="text-lg">{feature.title}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <CardDescription>
+                      {feature.description}
+                    </CardDescription>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
-          </CardContent>
-        </Card>
+          </TabsContent>
+
+          <TabsContent value="vaults" className="space-y-6">
+            <VaultManager />
+          </TabsContent>
+
+          <TabsContent value="documents" className="space-y-6">
+            {/* Onboarding Documents Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  Onboarding Documents
+                </CardTitle>
+                <CardDescription>
+                  Access and complete required onboarding documentation
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <Button 
+                    variant="outline" 
+                    className="h-auto p-4 justify-start"
+                    onClick={() => window.location.href = '/property-pledge-agreement'}
+                  >
+                    <div className="text-left">
+                      <h3 className="font-medium">Property Pledge Agreement</h3>
+                      <p className="text-sm text-muted-foreground">Pledge property for tokenization</p>
+                    </div>
+                  </Button>
+                  
+                  <Button 
+                    variant="outline" 
+                    className="h-auto p-4 justify-start"
+                    onClick={() => window.location.href = '/token-issuance-agreement'}
+                  >
+                    <div className="text-left">
+                      <h3 className="font-medium">Token Issuance Agreement</h3>
+                      <p className="text-sm text-muted-foreground">Define token issuance terms</p>
+                    </div>
+                  </Button>
+                  
+                  <Button 
+                    variant="outline" 
+                    className="h-auto p-4 justify-start"
+                    onClick={() => window.location.href = '/subscription-agreement'}
+                  >
+                    <div className="text-left">
+                      <h3 className="font-medium">Subscription Agreement</h3>
+                      <p className="text-sm text-muted-foreground">Subscribe to token offerings</p>
+                    </div>
+                  </Button>
+                  
+                  <Button 
+                    variant="outline" 
+                    className="h-auto p-4 justify-start"
+                    onClick={() => window.location.href = '/operating-agreement'}
+                  >
+                    <div className="text-left">
+                      <h3 className="font-medium">Operating Agreement (SPV/LLC)</h3>
+                      <p className="text-sm text-muted-foreground">Entity operating structure</p>
+                    </div>
+                  </Button>
+                  
+                  <Button 
+                    variant="outline" 
+                    className="h-auto p-4 justify-start"
+                    onClick={() => window.location.href = '/token-holder-agreement'}
+                  >
+                    <div className="text-left">
+                      <h3 className="font-medium">Token Holder Agreement</h3>
+                      <p className="text-sm text-muted-foreground">Token holder rights and duties</p>
+                    </div>
+                  </Button>
+                  
+                  <Button 
+                    variant="outline" 
+                    className="h-auto p-4 justify-start"
+                    onClick={() => window.location.href = '/kyc-aml-policy'}
+                  >
+                    <div className="text-left">
+                      <h3 className="font-medium">KYC/AML Policy</h3>
+                      <p className="text-sm text-muted-foreground">Identity verification requirements</p>
+                    </div>
+                  </Button>
+                  
+                  <Button 
+                    variant="outline" 
+                    className="h-auto p-4 justify-start"
+                    onClick={() => window.location.href = '/custody-tokenization-policy'}
+                  >
+                    <div className="text-left">
+                      <h3 className="font-medium">Custody & Tokenization Policy</h3>
+                      <p className="text-sm text-muted-foreground">Asset custody and tokenization terms</p>
+                    </div>
+                  </Button>
+                  
+                  <Button 
+                    variant="outline" 
+                    className="h-auto p-4 justify-start"
+                    onClick={() => window.location.href = '/swap-settlement-agreement'}
+                  >
+                    <div className="text-left">
+                      <h3 className="font-medium">Swap/Settlement Agreement</h3>
+                      <p className="text-sm text-muted-foreground">Token trading and settlement terms</p>
+                    </div>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="profile" className="space-y-6">
+            {/* User Profile Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <User className="h-5 w-5" />
+                  Profile Information
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      <User className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm font-medium">Full Name</p>
+                        <p className="text-sm text-muted-foreground">{profile?.full_name || 'Not provided'}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Mail className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm font-medium">Email</p>
+                        <p className="text-sm text-muted-foreground">{profile?.email}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Calendar className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm font-medium">Member Since</p>
+                        <p className="text-sm text-muted-foreground">
+                          {profile?.created_at ? new Date(profile.created_at).toLocaleDateString() : 'Unknown'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <div>
+                      <p className="text-sm font-medium mb-2">Account Role</p>
+                      {profile?.role && getRoleBadge(profile.role)}
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium mb-2">KYC Status</p>
+                      {profile?.kyc_status && getKYCStatusBadge(profile.kyc_status)}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
