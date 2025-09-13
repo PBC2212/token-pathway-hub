@@ -48,6 +48,14 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5">
+      {/* Contact Numbers */}
+      <div className="container mx-auto px-4 py-4">
+        <div className="flex justify-end gap-6 text-sm text-muted-foreground">
+          <div>Issuer Contact: <span className="font-medium">248-678-4819</span></div>
+          <div>Investor Contact: <span className="font-medium">248-678-7252</span></div>
+        </div>
+      </div>
+      
       {/* Hero Section */}
       <section className="relative overflow-hidden">
         <div className="container mx-auto px-4 py-20 lg:py-28">
