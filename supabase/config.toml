@@ -68,6 +68,15 @@ verify_jwt = true
 [functions.get-pledges]
 verify_jwt = true
 
+[functions.liquidity-get-pools]
+verify_jwt = true
+
+[functions.liquidity-create-pool]
+verify_jwt = true
+
+[functions.liquidity-add-remove]
+verify_jwt = true
+
 [analytics]
 enabled = false
 port = 54327
