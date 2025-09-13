@@ -21,6 +21,7 @@ import KYCAMLPolicy from "./pages/KYCAMLPolicy";
 import CustodyTokenizationPolicy from "./pages/CustodyTokenizationPolicy";
 import SwapSettlementAgreement from "./pages/SwapSettlementAgreement";
 import PledgePage from "./pages/PledgePage";
+import MintPage from "./pages/MintPage";
 import TokenDashboard from "./pages/TokenDashboard";
 import LiquidityPage from "./pages/LiquidityPage";
 
@@ -40,6 +41,7 @@ const App = () => (
             <Route path="/admin" element={<Admin />} />
             <Route path="/learn-more" element={<LearnMore />} />
             <Route path="/pledge" element={<PledgePage />} />
+            <Route path="/mint" element={<MintPage />} />
             <Route path="/token-dashboard" element={<TokenDashboard />} />
             <Route path="/liquidity" element={<LiquidityPage />} />
             <Route path="/privacy-policy" element={<PrivacyPolicy />} />

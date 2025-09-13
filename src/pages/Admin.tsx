@@ -9,7 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from '@/hooks/use-toast';
-import { Users, FileText, UserCheck, Database, Plus, RefreshCw } from 'lucide-react';
+import { Users, FileText, UserCheck, Database, Plus, RefreshCw, Shield } from 'lucide-react';
+import VaultManager from '@/components/VaultManager';
+import AdminPledgeManager from '@/components/AdminPledgeManager';
 
 interface Profile {
   id: string;
@@ -252,8 +254,12 @@ export default function Admin() {
           </Button>
         </div>
 
-        <Tabs defaultValue="users" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+        <Tabs defaultValue="pledges" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-5">
+            <TabsTrigger value="pledges" className="flex items-center gap-2">
+              <Shield className="h-4 w-4" />
+              Pledges
+            </TabsTrigger>
             <TabsTrigger value="users" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
               Users
@@ -271,6 +277,14 @@ export default function Admin() {
               Create User
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="pledges" className="space-y-4">
+            <AdminPledgeManager />
+          </TabsContent>
+
+          <TabsContent value="pledges">
+            <AdminPledgeManager />
+          </TabsContent>
 
           <TabsContent value="users" className="space-y-4">
             <Card>

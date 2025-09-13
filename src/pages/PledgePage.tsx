@@ -67,26 +67,23 @@ const PledgePage = () => {
         return;
       }
 
-      // Calculate token amount (1:1 ratio with USD value for simplicity)
-      const tokenAmount = parseFloat(formData.appraisedValue);
-
-      // Call mint-tokens edge function
-      const { data, error } = await supabase.functions.invoke('mint-tokens', {
+      // Call create-pledge edge function
+      const { data, error } = await supabase.functions.invoke('create-pledge', {
         body: {
-          address: formData.walletAddress,
-          amount: tokenAmount,
-          assetType: formData.assetType,
-          appraisedValue: parseFloat(formData.appraisedValue),
-          contractAddress: formData.contractAddress,
-          tokenSymbol: formData.tokenSymbol
+          user_address: formData.walletAddress,
+          asset_type: formData.assetType,
+          appraised_value: parseFloat(formData.appraisedValue),
+          token_symbol: formData.tokenSymbol,
+          contract_address: formData.contractAddress,
+          description: formData.description
         }
       });
 
       if (error) {
-        console.error('Error minting tokens:', error);
+        console.error('Error creating pledge:', error);
         toast({
           title: 'Error',
-          description: 'Failed to initiate token minting. Please try again.',
+          description: 'Failed to create pledge. Please try again.',
           variant: 'destructive'
         });
         return;
@@ -94,7 +91,7 @@ const PledgePage = () => {
 
       toast({
         title: 'Success!',
-        description: `Successfully initiated minting of ${tokenAmount} ${formData.tokenSymbol} tokens. Transaction ID: ${data.transactionId}`,
+        description: data.message,
       });
 
       // Clear form
@@ -107,7 +104,7 @@ const PledgePage = () => {
         description: ''
       });
 
-      // Navigate to token dashboard after a delay
+      // Navigate to token dashboard after a delay to show pledges
       setTimeout(() => {
         navigate('/token-dashboard');
       }, 2000);
@@ -146,7 +143,7 @@ const PledgePage = () => {
             </div>
             <h1 className="text-3xl font-bold">Pledge Real-World Asset</h1>
             <p className="text-muted-foreground">
-              Tokenize your real-world assets and mint digital tokens representing their value
+              Submit your real-world assets for tokenization. Assets require admin approval before tokens can be minted.
             </p>
           </div>
 
@@ -285,7 +282,7 @@ const PledgePage = () => {
                   className="w-full" 
                   disabled={isLoading}
                 >
-                  {isLoading ? 'Minting Tokens...' : 'Pledge Asset & Mint Tokens'}
+                  {isLoading ? 'Creating Pledge...' : 'Submit Asset Pledge'}
                 </Button>
               </form>
             </CardContent>

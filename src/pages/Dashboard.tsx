@@ -186,25 +186,39 @@ const Dashboard = () => {
 
           <TabsContent value="tokenization" className="space-y-6">
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Coins className="h-5 w-5" />
-                    Pledge Assets
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground mb-4">
-                    Pledge your real-world assets and mint digital tokens representing their value
-                  </p>
-                  <Button 
-                    className="w-full" 
-                    onClick={() => navigate('/pledge')}
-                  >
-                    Pledge Asset
-                  </Button>
-                </CardContent>
-              </Card>
+                  <Card className="p-6 hover:shadow-md transition-shadow cursor-pointer" onClick={() => navigate('/pledge')}>
+                    <div className="flex items-center gap-4">
+                      <div className="p-3 rounded-lg bg-primary/10">
+                        <Coins className="h-6 w-6 text-primary" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold">Pledge Assets</h3>
+                        <p className="text-sm text-muted-foreground">
+                          Submit your real-world assets for approval and tokenization
+                        </p>
+                      </div>
+                    </div>
+                    <Button className="w-full mt-4">
+                      Pledge Asset
+                    </Button>
+                  </Card>
+
+                  <Card className="p-6 hover:shadow-md transition-shadow cursor-pointer" onClick={() => navigate('/mint')}>
+                    <div className="flex items-center gap-4">
+                      <div className="p-3 rounded-lg bg-green-100">
+                        <Coins className="h-6 w-6 text-green-600" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold">Mint Tokens</h3>
+                        <p className="text-sm text-muted-foreground">
+                          Mint digital tokens for your approved asset pledges
+                        </p>
+                      </div>
+                    </div>
+                    <Button className="w-full mt-4">
+                      Mint Tokens
+                    </Button>
+                  </Card>
 
               <Card>
                 <CardHeader>

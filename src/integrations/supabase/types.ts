@@ -191,30 +191,42 @@ export type Database = {
       }
       pledges: {
         Row: {
+          admin_notes: string | null
           appraised_value: number
+          approved_at: string | null
+          approved_by: string | null
           asset_type: string
           created_at: string
           id: string
+          status: string
           token_amount: number
           tx_hash: string | null
           updated_at: string
           user_address: string
         }
         Insert: {
+          admin_notes?: string | null
           appraised_value: number
+          approved_at?: string | null
+          approved_by?: string | null
           asset_type: string
           created_at?: string
           id?: string
+          status?: string
           token_amount: number
           tx_hash?: string | null
           updated_at?: string
           user_address: string
         }
         Update: {
+          admin_notes?: string | null
           appraised_value?: number
+          approved_at?: string | null
+          approved_by?: string | null
           asset_type?: string
           created_at?: string
           id?: string
+          status?: string
           token_amount?: number
           tx_hash?: string | null
           updated_at?: string
@@ -344,6 +356,10 @@ export type Database = {
       }
       is_service_role_or_admin: {
         Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      update_pledge_status: {
+        Args: { p_admin_notes?: string; p_pledge_id: string; p_status: string }
         Returns: boolean
       }
       update_user_profile: {

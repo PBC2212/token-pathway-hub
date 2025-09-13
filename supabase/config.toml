@@ -50,6 +50,9 @@ verify_jwt = false
 [functions.fireblocks-get-vaults]
 verify_jwt = true
 
+[functions.create-pledge]
+verify_jwt = true
+
 [functions.fireblocks-get-assets]
 verify_jwt = true
 
