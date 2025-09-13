@@ -1,10 +1,10 @@
-# Asset Tokenization Smart Contracts
+# Asset Tokenization & Liquidity Pool Smart Contracts
 
-This directory contains production-ready smart contracts for tokenizing real-world assets on the blockchain.
+This directory contains production-ready smart contracts for tokenizing real-world assets and providing liquidity through automated market makers (AMM).
 
 ## Contract Architecture
 
-### Core Contracts
+### Asset Tokenization Contracts
 
 #### 1. BaseAssetToken.sol
 The foundational contract that all asset-specific tokens inherit from. Provides:
@@ -49,12 +49,53 @@ Factory contract for deploying and managing asset token contracts:
 - **Asset type categorization**
 - **Contract status management** (active/inactive)
 
+### Liquidity Pool Contracts
+
+#### 1. LiquidityPoolFactory.sol
+Factory contract for creating and managing AMM liquidity pools:
+- **Pool creation** for any token pair with configurable fees
+- **Multi-fee tier support** (0.05%, 0.3%, 1%, 3%, 5%)
+- **Pool registry** and status management
+- **Emergency controls** for individual pools
+
+#### 2. LiquidityPool.sol
+Individual AMM pool implementing constant product formula (x * y = k):
+- **Automated market making** with dynamic pricing
+- **Liquidity provision** with LP token rewards
+- **Token swapping** with slippage protection
+- **Price oracle** with time-weighted average prices (TWAP)
+- **Fee collection** distributed to liquidity providers
+
+#### 3. LPToken.sol
+ERC20 token representing liquidity pool shares:
+- **Proportional ownership** of pool reserves
+- **Minting/burning** based on liquidity operations
+- **Standard ERC20** functionality for transferability
+
 ### Interfaces
 
 #### IAssetMetadata.sol
 Interface defining standard metadata functionality across all asset tokens.
 
+#### ILiquidityPool.sol
+Interface defining standard liquidity pool operations and data structures.
+
 ## Features
+
+### Asset Tokenization Features
+- **Compliance & KYC** integration with role-based access
+- **Asset-specific metadata** tailored to each asset class
+- **Transfer restrictions** for regulatory compliance
+- **Supply cap management** with dynamic adjustments
+- **Pausable functionality** for emergency situations
+
+### Liquidity Pool Features
+- **Automated Market Making** using constant product formula
+- **Multi-fee structures** to optimize trading for different asset pairs
+- **LP token system** for proportional reward distribution
+- **Slippage protection** with minimum output guarantees
+- **Price impact calculation** for optimal trade execution
+- **TWAP oracle** for manipulation-resistant pricing
 
 ### Security Features
 - **Role-based access control** using OpenZeppelin's AccessControl

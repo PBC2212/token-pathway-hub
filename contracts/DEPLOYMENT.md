@@ -1,6 +1,6 @@
 # Smart Contract Deployment Guide
 
-This guide walks you through deploying the asset tokenization smart contracts to production.
+This guide walks you through deploying the asset tokenization and liquidity pool smart contracts to production.
 
 ## Prerequisites
 
@@ -41,29 +41,42 @@ forge build
 
 Deploy contracts in this specific order:
 
-#### Step 3a: Deploy Factory Contract
+#### Step 3a: Deploy Factory Contracts
 
 ```javascript
-// scripts/01-deploy-factory.js
+// scripts/01-deploy-factories.js
 const { ethers } = require("hardhat");
 
 async function main() {
   const [deployer] = await ethers.getSigners();
-  console.log("Deploying factory with account:", deployer.address);
+  console.log("Deploying factories with account:", deployer.address);
 
+  // Deploy Asset Token Factory
   const AssetTokenFactory = await ethers.getContractFactory("AssetTokenFactory");
-  const factory = await AssetTokenFactory.deploy(deployer.address);
-  await factory.deployed();
+  const assetFactory = await AssetTokenFactory.deploy(deployer.address);
+  await assetFactory.deployed();
+  console.log("AssetTokenFactory deployed to:", assetFactory.address);
 
-  console.log("AssetTokenFactory deployed to:", factory.address);
+  // Deploy Liquidity Pool Factory
+  const LiquidityPoolFactory = await ethers.getContractFactory("LiquidityPoolFactory");
+  const liquidityFactory = await LiquidityPoolFactory.deploy();
+  await liquidityFactory.deployed();
+  console.log("LiquidityPoolFactory deployed to:", liquidityFactory.address);
   
-  // Verify contract on block explorer
+  // Verify contracts on block explorer
   if (network.name !== "localhost") {
     await run("verify:verify", {
-      address: factory.address,
+      address: assetFactory.address,
       constructorArguments: [deployer.address],
     });
+    
+    await run("verify:verify", {
+      address: liquidityFactory.address,
+      constructorArguments: [],
+    });
   }
+  
+  return { assetFactory: assetFactory.address, liquidityFactory: liquidityFactory.address };
 }
 ```
 
@@ -104,21 +117,59 @@ async function main() {
 }
 ```
 
+#### Step 3c: Create Initial Liquidity Pools
+
+```javascript
+// scripts/03-deploy-liquidity-pools.js
+async function main() {
+  const liquidityFactoryAddress = "0x..."; // From step 3a
+  const factory = await ethers.getContractAt("LiquidityPoolFactory", liquidityFactoryAddress);
+  
+  // Get deployed token addresses
+  const tokenAddresses = await getDeployedTokens(); // Helper function
+  const usdcAddress = "0x..."; // USDC contract address on your network
+  
+  // Create pools for major trading pairs
+  const poolConfigs = [
+    { tokenA: tokenAddresses.realEstate, tokenB: usdcAddress, feeRate: 30 }, // 0.3%
+    { tokenA: tokenAddresses.gold, tokenB: usdcAddress, feeRate: 30 },        // 0.3%
+    { tokenA: tokenAddresses.vehicle, tokenB: usdcAddress, feeRate: 30 },     // 0.3%
+    { tokenA: tokenAddresses.art, tokenB: usdcAddress, feeRate: 100 },        // 1.0%
+    { tokenA: tokenAddresses.equipment, tokenB: usdcAddress, feeRate: 50 },   // 0.5%
+    { tokenA: tokenAddresses.commodity, tokenB: usdcAddress, feeRate: 30 }    // 0.3%
+  ];
+  
+  for (const config of poolConfigs) {
+    const tx = await factory.createPool(config.tokenA, config.tokenB, config.feeRate);
+    const receipt = await tx.wait();
+    console.log(`Pool created for ${config.tokenA}/${config.tokenB} with ${config.feeRate/100}% fee`);
+  }
+}
+```
+
 ### 4. Contract Verification
 
 Verify all deployed contracts on block explorers:
 
 ```bash
-# Verify factory
-npx hardhat verify --network mainnet 0x[FACTORY_ADDRESS] 0x[ADMIN_ADDRESS]
+# Verify asset factory
+npx hardhat verify --network mainnet 0x[ASSET_FACTORY_ADDRESS] 0x[ADMIN_ADDRESS]
 
-# Get deployed contract addresses from factory
+# Verify liquidity factory
+npx hardhat verify --network mainnet 0x[LIQUIDITY_FACTORY_ADDRESS]
+
+# Get deployed contract addresses from factories
 npx hardhat run scripts/get-deployed-contracts.js --network mainnet
 
 # Verify each token contract
 npx hardhat verify --network mainnet 0x[RET_ADDRESS] 0x[ADMIN_ADDRESS]
 npx hardhat verify --network mainnet 0x[GLD_ADDRESS] 0x[ADMIN_ADDRESS]
 # ... etc for each token
+
+# Verify liquidity pools (get addresses from factory events)
+npx hardhat run scripts/get-deployed-pools.js --network mainnet
+npx hardhat verify --network mainnet 0x[POOL_ADDRESS] 
+# ... etc for each pool
 ```
 
 ### 5. Post-Deployment Configuration
@@ -162,6 +213,16 @@ const CONTRACT_ADDRESSES = {
   equipment: "0x...",   // Deployed EQT address
   commodity: "0x..."    // Deployed COM address
 };
+
+// Update liquidity pool edge functions
+// supabase/functions/liquidity-create-pool/index.ts
+const LIQUIDITY_FACTORY_ADDRESS = "0x..."; // Deployed liquidity factory address
+
+// supabase/functions/liquidity-add-remove/index.ts  
+const LIQUIDITY_FACTORY_ADDRESS = "0x..."; // Same factory address
+
+// supabase/functions/liquidity-get-pools/index.ts
+// Update to use real contract calls instead of mock data
 ```
 
 ### 6. Testing Deployment
@@ -209,14 +270,17 @@ Before going live, verify:
 Final deployment to mainnet:
 
 ```bash
-# Deploy factory
-npx hardhat run scripts/01-deploy-factory.js --network mainnet
+# Deploy factories (asset and liquidity)
+npx hardhat run scripts/01-deploy-factories.js --network mainnet
 
-# Deploy tokens via factory
+# Deploy tokens via asset factory
 npx hardhat run scripts/02-deploy-tokens.js --network mainnet
 
+# Create initial liquidity pools
+npx hardhat run scripts/03-deploy-liquidity-pools.js --network mainnet
+
 # Configure roles and permissions
-npx hardhat run scripts/03-configure-roles.js --network mainnet
+npx hardhat run scripts/04-configure-roles.js --network mainnet
 
 # Run integration tests
 npx hardhat test test/integration/deployment.test.js --network mainnet
@@ -241,13 +305,22 @@ After deployment, maintain a registry:
   "deployedAt": "2024-01-15T10:00:00Z",
   "deployer": "0x...",
   "contracts": {
-    "factory": "0x...",
+    "assetFactory": "0x...",
+    "liquidityFactory": "0x...",
     "realEstateToken": "0x...",
     "goldToken": "0x...",
     "vehicleToken": "0x...",
     "artToken": "0x...",
     "equipmentToken": "0x...",
     "commodityToken": "0x..."
+  },
+  "liquidityPools": {
+    "RET/USDC": "0x...",
+    "GLD/USDC": "0x...",
+    "VET/USDC": "0x...",
+    "ART/USDC": "0x...",
+    "EQT/USDC": "0x...",
+    "COM/USDC": "0x..."
   },
   "roles": {
     "admin": "0x...",
