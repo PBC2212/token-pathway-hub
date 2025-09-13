@@ -22,6 +22,7 @@ import CustodyTokenizationPolicy from "./pages/CustodyTokenizationPolicy";
 import SwapSettlementAgreement from "./pages/SwapSettlementAgreement";
 import PledgePage from "./pages/PledgePage";
 import TokenDashboard from "./pages/TokenDashboard";
+import LiquidityPage from "./pages/LiquidityPage";
 
 const queryClient = new QueryClient();
 
@@ -40,6 +41,7 @@ const App = () => (
             <Route path="/learn-more" element={<LearnMore />} />
             <Route path="/pledge" element={<PledgePage />} />
             <Route path="/token-dashboard" element={<TokenDashboard />} />
+            <Route path="/liquidity" element={<LiquidityPage />} />
             <Route path="/privacy-policy" element={<PrivacyPolicy />} />
             <Route path="/aml-policy" element={<AMLPolicy />} />
             <Route path="/property-pledge-agreement" element={<PropertyPledgeAgreement />} />

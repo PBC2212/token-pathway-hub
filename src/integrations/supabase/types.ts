@@ -88,6 +88,107 @@ export type Database = {
           },
         ]
       }
+      liquidity_operations: {
+        Row: {
+          created_at: string
+          fireblocks_tx_id: string | null
+          id: string
+          lp_tokens_received: number | null
+          operation_type: string
+          pool_id: string
+          slippage_tolerance: string | null
+          status: string
+          token_a_amount: number
+          token_b_amount: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          fireblocks_tx_id?: string | null
+          id?: string
+          lp_tokens_received?: number | null
+          operation_type: string
+          pool_id: string
+          slippage_tolerance?: string | null
+          status?: string
+          token_a_amount: number
+          token_b_amount: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          fireblocks_tx_id?: string | null
+          id?: string
+          lp_tokens_received?: number | null
+          operation_type?: string
+          pool_id?: string
+          slippage_tolerance?: string | null
+          status?: string
+          token_a_amount?: number
+          token_b_amount?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_liquidity_operations_pool"
+            columns: ["pool_id"]
+            isOneToOne: false
+            referencedRelation: "liquidity_pools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      liquidity_pools: {
+        Row: {
+          created_at: string
+          fee_rate: string
+          fireblocks_tx_id: string | null
+          id: string
+          initial_liquidity_a: number
+          initial_liquidity_b: number
+          pool_address: string | null
+          pool_type: string
+          status: string
+          token_a: string
+          token_b: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          fee_rate?: string
+          fireblocks_tx_id?: string | null
+          id?: string
+          initial_liquidity_a: number
+          initial_liquidity_b: number
+          pool_address?: string | null
+          pool_type?: string
+          status?: string
+          token_a: string
+          token_b: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          fee_rate?: string
+          fireblocks_tx_id?: string | null
+          id?: string
+          initial_liquidity_a?: number
+          initial_liquidity_b?: number
+          pool_address?: string | null
+          pool_type?: string
+          status?: string
+          token_a?: string
+          token_b?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       pledges: {
         Row: {
           appraised_value: number

@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import VaultManager from '@/components/VaultManager';
-import { LogOut, Shield, FileText, Users, Building, Briefcase, User, Mail, Calendar, Vault, Settings, Coins, TrendingUp, DollarSign } from 'lucide-react';
+import { LogOut, Shield, FileText, Users, Building, Briefcase, User, Mail, Calendar, Vault, Settings, Coins, TrendingUp, DollarSign, Droplets } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 
@@ -243,6 +243,26 @@ const Dashboard = () => {
                     onClick={() => navigate('/pledge')}
                   >
                     View Options
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Droplets className="h-5 w-5" />
+                    Liquidity Pools
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-muted-foreground mb-4">
+                    Create and manage liquidity pools for your RWA tokens against USDC/USDT
+                  </p>
+                  <Button 
+                    className="w-full" 
+                    onClick={() => navigate('/liquidity')}
+                  >
+                    Manage Liquidity
                   </Button>
                 </CardContent>
               </Card>
