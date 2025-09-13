@@ -298,7 +298,7 @@ const Dashboard = () => {
                   <Button 
                     variant="outline" 
                     className="h-auto p-4 justify-start"
-                    onClick={() => window.location.href = '/property-pledge-agreement'}
+                    onClick={() => navigate('/property-pledge-agreement')}
                   >
                     <div className="text-left">
                       <h3 className="font-medium">Property Pledge Agreement</h3>
@@ -309,7 +309,7 @@ const Dashboard = () => {
                   <Button 
                     variant="outline" 
                     className="h-auto p-4 justify-start"
-                    onClick={() => window.location.href = '/token-issuance-agreement'}
+                    onClick={() => navigate('/token-issuance-agreement')}
                   >
                     <div className="text-left">
                       <h3 className="font-medium">Token Issuance Agreement</h3>
