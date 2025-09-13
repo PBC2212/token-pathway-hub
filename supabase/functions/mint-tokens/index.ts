@@ -88,6 +88,7 @@ interface MintRequest {
   appraisedValue: number;
   contractAddress: string;
   tokenSymbol: string;
+  pledgeId?: string;
 }
 
 Deno.serve(async (req) => {
@@ -176,18 +177,34 @@ Deno.serve(async (req) => {
       }
     };
 
-    // Store pledge record in Supabase
-    const { data: pledge, error: pledgeError } = await supabase
-      .from('pledges')
-      .insert({
-        user_address: address,
-        asset_type: assetType,
-        appraised_value: appraisedValue,
-        token_amount: amount,
-        tx_hash: fireblocksResult.id // Store Fireblocks transaction ID
-      })
-      .select()
-      .single();
+    // Store or update pledge record in Supabase
+    let pledge: any = null;
+    let pledgeError: any = null;
+
+    if (mintRequest.pledgeId) {
+      const { data, error } = await supabase
+        .from('pledges')
+        .update({ tx_hash: fireblocksResult.id })
+        .eq('id', mintRequest.pledgeId)
+        .select()
+        .single();
+      pledge = data;
+      pledgeError = error;
+    } else {
+      const { data, error } = await supabase
+        .from('pledges')
+        .insert({
+          user_address: address,
+          asset_type: assetType,
+          appraised_value: appraisedValue,
+          token_amount: amount,
+          tx_hash: fireblocksResult.id // Store Fireblocks transaction ID
+        })
+        .select()
+        .single();
+      pledge = data;
+      pledgeError = error;
+    }
 
     if (pledgeError) {
       console.error('Error storing pledge:', pledgeError);

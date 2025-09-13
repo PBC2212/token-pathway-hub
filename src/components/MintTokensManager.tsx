@@ -104,7 +104,8 @@ const MintTokensManager = () => {
           assetType: pledge.asset_type,
           appraisedValue: pledge.appraised_value,
           contractAddress: '0x742d35Cc6634C0532925a3b8D0b5D71c1A37bb2C', // Default contract address
-          tokenSymbol: tokenSymbol
+          tokenSymbol: tokenSymbol,
+          pledgeId: pledge.id
         }
       });
 

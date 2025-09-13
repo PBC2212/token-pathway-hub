@@ -106,6 +106,51 @@ const AdminPledgeManager = () => {
         description: `Pledge ${action === 'approve' ? 'approved' : 'rejected'} successfully`
       });
 
+      if (action === 'approve') {
+        // Automatically trigger minting after approval
+        const assetTypes = [
+          { value: 'real_estate', symbol: 'RET' },
+          { value: 'gold', symbol: 'GLD' },
+          { value: 'vehicle', symbol: 'VET' },
+          { value: 'art', symbol: 'ART' },
+          { value: 'equipment', symbol: 'EQT' },
+          { value: 'commodity', symbol: 'COM' }
+        ];
+        const selectedAsset = assetTypes.find(asset => asset.value === selectedPledge.asset_type);
+        const tokenSymbol = selectedAsset?.symbol || 'TOK';
+
+        const { data: mintData, error: mintError } = await supabase.functions.invoke('mint-tokens', {
+          body: {
+            address: selectedPledge.user_address,
+            amount: selectedPledge.token_amount,
+            assetType: selectedPledge.asset_type,
+            appraisedValue: selectedPledge.appraised_value,
+            contractAddress: '0x742d35Cc6634C0532925a3b8D0b5D71c1A37bb2C',
+            tokenSymbol,
+            pledgeId: selectedPledge.id
+          }
+        });
+
+        if (mintError) {
+          console.error('Error minting tokens after approval:', mintError);
+          toast({
+            title: 'Minting failed',
+            description: 'Pledge approved, but minting failed. The user can try minting manually.',
+            variant: 'destructive'
+          });
+        } else {
+          toast({
+            title: 'Mint initiated',
+            description: `Minting ${selectedPledge.token_amount} ${tokenSymbol} tokens. Tx: ${mintData.transactionId}`
+          });
+          // Update the approved pledge with the transaction id for traceability
+          await supabase
+            .from('pledges')
+            .update({ tx_hash: mintData.transactionId })
+            .eq('id', selectedPledge.id);
+        }
+      }
+
       setActionDialogOpen(false);
       setSelectedPledge(null);
       setAdminNotes('');
