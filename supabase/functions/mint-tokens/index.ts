@@ -138,7 +138,9 @@ Deno.serve(async (req) => {
     // Get Fireblocks credentials
     const apiKey = Deno.env.get('FIREBLOCKS_API_KEY');
     const privateKeyPem = Deno.env.get('FIREBLOCKS_PRIVATE_KEY');
-    const baseUrl = Deno.env.get('FIREBLOCKS_BASE_URL') || 'https://sandbox-api.fireblocks.io/v1';
+    // Use base URL without "/v1" to avoid JWT uri mismatches; uri below already includes "/v1/..."
+    const rawBaseUrl = Deno.env.get('FIREBLOCKS_BASE_URL') || 'https://sandbox-api.fireblocks.io';
+    const baseUrl = rawBaseUrl.replace(/\/v1\/?$/, '');
 
     if (!apiKey || !privateKeyPem) {
       return new Response(
