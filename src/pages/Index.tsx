@@ -58,7 +58,7 @@ const Index = () => {
       
       {/* Hero Section */}
       <section className="relative overflow-hidden">
-        <div className="container mx-auto px-4 py-8 lg:py-12">
+        <div className="container mx-auto px-4 py-4 lg:py-8">
           <div className="text-center max-w-4xl mx-auto space-y-8">
             <div className="flex items-center justify-center mb-6">
               <Shield className="h-16 w-16 text-primary" />
