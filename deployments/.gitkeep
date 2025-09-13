@@ -1,0 +1,2 @@
+# This directory will contain deployment artifacts
+# Keep this folder in git but ignore the deployment files themselves
