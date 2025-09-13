@@ -358,6 +358,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
+      setup_admin_user: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       update_pledge_status: {
         Args: { p_admin_notes?: string; p_pledge_id: string; p_status: string }
         Returns: boolean
