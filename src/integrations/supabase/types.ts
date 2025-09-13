@@ -88,6 +88,39 @@ export type Database = {
           },
         ]
       }
+      pledges: {
+        Row: {
+          appraised_value: number
+          asset_type: string
+          created_at: string
+          id: string
+          token_amount: number
+          tx_hash: string | null
+          updated_at: string
+          user_address: string
+        }
+        Insert: {
+          appraised_value: number
+          asset_type: string
+          created_at?: string
+          id?: string
+          token_amount: number
+          tx_hash?: string | null
+          updated_at?: string
+          user_address: string
+        }
+        Update: {
+          appraised_value?: number
+          asset_type?: string
+          created_at?: string
+          id?: string
+          token_amount?: number
+          tx_hash?: string | null
+          updated_at?: string
+          user_address?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -118,6 +151,30 @@ export type Database = {
           role?: string | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      token_balances: {
+        Row: {
+          balance: number
+          id: string
+          token_symbol: string
+          updated_at: string
+          user_address: string
+        }
+        Insert: {
+          balance?: number
+          id?: string
+          token_symbol: string
+          updated_at?: string
+          user_address: string
+        }
+        Update: {
+          balance?: number
+          id?: string
+          token_symbol?: string
+          updated_at?: string
+          user_address?: string
         }
         Relationships: []
       }

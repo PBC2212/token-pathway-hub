@@ -1,0 +1,283 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+// Utility functions for JWT creation (same as in other Fireblocks functions)
+function base64UrlEncode(input: Uint8Array): string {
+  const base64 = btoa(String.fromCharCode(...input));
+  return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+}
+
+function base64UrlEncodeString(input: string): string {
+  return base64UrlEncode(new TextEncoder().encode(input));
+}
+
+async function sha256Hex(input: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(input);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function importPrivateKey(pem: string): Promise<CryptoKey> {
+  const pemContents = pem
+    .replace(/-----BEGIN PRIVATE KEY-----/, '')
+    .replace(/-----END PRIVATE KEY-----/, '')
+    .replace(/\s/g, '');
+  
+  const binaryDer = Uint8Array.from(atob(pemContents), c => c.charCodeAt(0));
+  
+  return await crypto.subtle.importKey(
+    'pkcs8',
+    binaryDer,
+    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+}
+
+async function createFireblocksJwt({
+  apiKey,
+  privateKeyPem,
+  uri,
+  body
+}: {
+  apiKey: string;
+  privateKeyPem: string;
+  uri: string;
+  body: string;
+}): Promise<string> {
+  const header = {
+    alg: 'RS256',
+    typ: 'JWT'
+  };
+
+  const now = Math.floor(Date.now() / 1000);
+  const payload = {
+    uri,
+    nonce: crypto.randomUUID(),
+    iat: now,
+    exp: now + 30,
+    sub: apiKey,
+    bodyHash: await sha256Hex(body)
+  };
+
+  const encodedHeader = base64UrlEncodeString(JSON.stringify(header));
+  const encodedPayload = base64UrlEncodeString(JSON.stringify(payload));
+  const signingInput = `${encodedHeader}.${encodedPayload}`;
+
+  const privateKey = await importPrivateKey(privateKeyPem);
+  const signature = await crypto.subtle.sign(
+    'RSASSA-PKCS1-v1_5',
+    privateKey,
+    new TextEncoder().encode(signingInput)
+  );
+
+  const encodedSignature = base64UrlEncode(new Uint8Array(signature));
+  return `${signingInput}.${encodedSignature}`;
+}
+
+interface MintRequest {
+  address: string;
+  amount: number;
+  assetType: string;
+  appraisedValue: number;
+  contractAddress: string;
+  tokenSymbol: string;
+}
+
+Deno.serve(async (req) => {
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    // Initialize Supabase client
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Get authorization header
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Missing authorization header' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Verify user authentication
+    const { data: { user }, error: authError } = await supabase.auth.getUser(
+      authHeader.replace('Bearer ', '')
+    );
+
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Parse request body
+    const mintRequest: MintRequest = await req.json();
+    const { address, amount, assetType, appraisedValue, contractAddress, tokenSymbol } = mintRequest;
+
+    // Validate input
+    if (!address || !amount || !assetType || !appraisedValue || !contractAddress || !tokenSymbol) {
+      return new Response(
+        JSON.stringify({ error: 'Missing required fields' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Get Fireblocks credentials
+    const apiKey = Deno.env.get('FIREBLOCKS_API_KEY');
+    const privateKeyPem = Deno.env.get('FIREBLOCKS_PRIVATE_KEY');
+    const baseUrl = Deno.env.get('FIREBLOCKS_BASE_URL') || 'https://sandbox-api.fireblocks.io/v1';
+
+    if (!apiKey || !privateKeyPem) {
+      return new Response(
+        JSON.stringify({ error: 'Fireblocks credentials not configured' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Convert amount to wei (assuming 18 decimals)
+    const amountInWei = (amount * Math.pow(10, 18)).toString();
+
+    // Prepare contract call data for mint function
+    // mint(address to, uint256 amount, string memory assetType, uint256 appraisedValue)
+    const abiEncoder = new TextEncoder();
+    const mintFunctionSelector = '0x8a1ba4dd'; // First 4 bytes of keccak256("mint(address,uint256,string,uint256)")
+    
+    // This is a simplified approach - in production, you'd use a proper ABI encoder
+    const contractCallData = {
+      contractAddress,
+      functionName: 'mint',
+      parameters: [
+        { type: 'address', value: address },
+        { type: 'uint256', value: amountInWei },
+        { type: 'string', value: assetType },
+        { type: 'uint256', value: appraisedValue.toString() }
+      ]
+    };
+
+    // Create Fireblocks transaction
+    const transactionData = {
+      operation: 'CONTRACT_CALL',
+      source: {
+        type: 'VAULT_ACCOUNT',
+        id: '0' // Default vault ID - adjust as needed
+      },
+      destination: {
+        type: 'EXTERNAL_WALLET',
+        oneTimeAddress: {
+          address: contractAddress
+        }
+      },
+      amount: '0', // No ETH transfer, just contract call
+      assetId: 'ETH',
+      fee: 'HIGH',
+      note: `Minting ${amount} ${tokenSymbol} tokens for ${assetType} asset`,
+      extraParameters: {
+        contractCallData: JSON.stringify(contractCallData)
+      }
+    };
+
+    const uri = '/v1/transactions';
+    const body = JSON.stringify(transactionData);
+
+    // Create JWT for Fireblocks API
+    const jwt = await createFireblocksJwt({
+      apiKey,
+      privateKeyPem,
+      uri,
+      body
+    });
+
+    // Call Fireblocks API
+    const fireblocksResponse = await fetch(`${baseUrl}${uri}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${jwt}`,
+        'Content-Type': 'application/json',
+        'X-API-Key': apiKey
+      },
+      body
+    });
+
+    const fireblocksResult = await fireblocksResponse.json();
+
+    if (!fireblocksResponse.ok) {
+      console.error('Fireblocks API error:', fireblocksResult);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Failed to initiate mint transaction',
+          details: fireblocksResult 
+        }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Store pledge record in Supabase
+    const { data: pledge, error: pledgeError } = await supabase
+      .from('pledges')
+      .insert({
+        user_address: address,
+        asset_type: assetType,
+        appraised_value: appraisedValue,
+        token_amount: amount,
+        tx_hash: fireblocksResult.id // Store Fireblocks transaction ID
+      })
+      .select()
+      .single();
+
+    if (pledgeError) {
+      console.error('Error storing pledge:', pledgeError);
+      // Don't fail the entire request if pledge storage fails
+    }
+
+    // Update or insert token balance
+    const { error: balanceError } = await supabase
+      .from('token_balances')
+      .upsert({
+        user_address: address,
+        token_symbol: tokenSymbol,
+        balance: amount // This should be updated from actual blockchain query in production
+      }, {
+        onConflict: 'user_address,token_symbol'
+      });
+
+    if (balanceError) {
+      console.error('Error updating token balance:', balanceError);
+    }
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        transactionId: fireblocksResult.id,
+        pledgeId: pledge?.id,
+        message: `Successfully initiated minting of ${amount} ${tokenSymbol} tokens`
+      }),
+      { 
+        status: 200, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    );
+
+  } catch (error) {
+    console.error('Error in mint-tokens function:', error);
+    return new Response(
+      JSON.stringify({ 
+        error: 'Internal server error',
+        details: error.message 
+      }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+});

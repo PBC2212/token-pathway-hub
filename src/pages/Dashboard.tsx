@@ -7,8 +7,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import VaultManager from '@/components/VaultManager';
-import { LogOut, Shield, FileText, Users, Building, Briefcase, User, Mail, Calendar, Vault, Settings } from 'lucide-react';
+import { LogOut, Shield, FileText, Users, Building, Briefcase, User, Mail, Calendar, Vault, Settings, Coins, TrendingUp, DollarSign } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { useNavigate } from 'react-router-dom';
 
 interface Profile {
   id: string;
@@ -22,6 +23,7 @@ interface Profile {
 
 const Dashboard = () => {
   const { user, signOut } = useAuth();
+  const navigate = useNavigate();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -137,8 +139,9 @@ const Dashboard = () => {
 
       <div className="container mx-auto px-4 py-8">
         <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="tokenization">Tokenization</TabsTrigger>
             <TabsTrigger value="vaults">Vaults</TabsTrigger>
             <TabsTrigger value="documents">Documents</TabsTrigger>
             <TabsTrigger value="profile">Profile</TabsTrigger>
@@ -179,6 +182,99 @@ const Dashboard = () => {
                 </Card>
               ))}
             </div>
+          </TabsContent>
+
+          <TabsContent value="tokenization" className="space-y-6">
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Coins className="h-5 w-5" />
+                    Pledge Assets
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-muted-foreground mb-4">
+                    Pledge your real-world assets and mint digital tokens representing their value
+                  </p>
+                  <Button 
+                    className="w-full" 
+                    onClick={() => navigate('/pledge')}
+                  >
+                    Pledge Asset
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5" />
+                    Token Dashboard
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-muted-foreground mb-4">
+                    View your tokenized assets, token balances, and portfolio performance
+                  </p>
+                  <Button 
+                    className="w-full" 
+                    onClick={() => navigate('/token-dashboard')}
+                  >
+                    View Dashboard
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Building className="h-5 w-5" />
+                    Asset Types
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-muted-foreground mb-4">
+                    Support for real estate, gold, vehicles, art, equipment, and commodities
+                  </p>
+                  <Button 
+                    className="w-full" 
+                    variant="outline"
+                    onClick={() => navigate('/pledge')}
+                  >
+                    View Options
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Smart Contract Info */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Smart Contract Integration</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <p className="text-muted-foreground">
+                    Our tokenization system uses secure smart contracts deployed on the blockchain with Fireblocks enterprise security.
+                  </p>
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div className="p-4 border rounded-lg">
+                      <h3 className="font-semibold mb-2">ERC-20 Tokens</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Industry-standard tokens with full compatibility across DeFi platforms
+                      </p>
+                    </div>
+                    <div className="p-4 border rounded-lg">
+                      <h3 className="font-semibold mb-2">Fireblocks Security</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Enterprise-grade security with multi-party computation and secure key management
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="vaults" className="space-y-6">
