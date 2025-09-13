@@ -7,6 +7,74 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+function base64UrlEncode(input: Uint8Array): string {
+  let str = btoa(String.fromCharCode(...input));
+  return str.replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+}
+
+function base64UrlEncodeString(input: string): string {
+  return base64UrlEncode(new TextEncoder().encode(input));
+}
+
+async function sha256Hex(input: string): Promise<string> {
+  const data = new TextEncoder().encode(input);
+  const hash = await crypto.subtle.digest('SHA-256', data);
+  const bytes = new Uint8Array(hash);
+  return Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+function pemToArrayBuffer(pem: string): ArrayBuffer {
+  const b64 = pem.replace(/-----BEGIN [\s\S]*?-----|-----END [\s\S]*?-----|\s/g, '');
+  const binaryString = atob(b64);
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes.buffer;
+}
+
+async function importPrivateKey(pem: string): Promise<CryptoKey> {
+  const keyData = pemToArrayBuffer(pem);
+  return crypto.subtle.importKey(
+    'pkcs8',
+    keyData,
+    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+}
+
+async function createFireblocksJwt({
+  apiKey,
+  privateKeyPem,
+  uri,
+  body,
+}: {
+  apiKey: string;
+  privateKeyPem: string;
+  uri: string;
+  body: string;
+}): Promise<string> {
+  const iat = Math.floor(Date.now() / 1000);
+  const exp = iat + 30; // 30 seconds expiry
+  const nonce = crypto.randomUUID();
+  const bodyHash = await sha256Hex(body || '');
+
+  const header = { alg: 'RS256', typ: 'JWT' };
+  const payload = { uri, nonce, iat, exp, sub: apiKey, bodyHash };
+
+  const encodedHeader = base64UrlEncodeString(JSON.stringify(header));
+  const encodedPayload = base64UrlEncodeString(JSON.stringify(payload));
+  const dataToSign = `${encodedHeader}.${encodedPayload}`;
+
+  const privateKey = await importPrivateKey(privateKeyPem);
+  const signature = new Uint8Array(await crypto.subtle.sign('RSASSA-PKCS1-v1_5', privateKey, new TextEncoder().encode(dataToSign)));
+  const encodedSignature = base64UrlEncode(signature);
+
+  return `${dataToSign}.${encodedSignature}`;
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -14,63 +82,50 @@ serve(async (req) => {
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const fireblocks = createClient(supabaseUrl, supabaseServiceKey);
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
 
-    // Get the authenticated user
-    const authHeader = req.headers.get('Authorization')!;
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
     const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await fireblocks.auth.getUser(token);
-
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+    const { data: { user } } = await supabaseAdmin.auth.getUser(token);
+    if (!user) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    const url = new URL(req.url);
-    const vaultId = url.searchParams.get('vaultId');
+    const { vaultId } = await req.json().catch(() => ({ vaultId: undefined }));
 
-    const fireblocksApiKey = Deno.env.get('FIREBLOCKS_API_KEY');
-    if (!fireblocksApiKey) {
-      throw new Error('Fireblocks API key not configured');
-    }
+    const apiKey = Deno.env.get('FIREBLOCKS_API_KEY');
+    const privateKeyPem = Deno.env.get('FIREBLOCKS_PRIVATE_KEY');
+    const baseUrl = Deno.env.get('FIREBLOCKS_BASE_URL') || 'https://api.fireblocks.io/v1';
 
-    // Get assets from Fireblocks vault
-    const apiUrl = vaultId 
-      ? `https://api.fireblocks.io/v1/vault/accounts/${vaultId}`
-      : 'https://api.fireblocks.io/v1/vault/assets';
+    if (!apiKey) throw new Error('FIREBLOCKS_API_KEY not configured');
+    if (!privateKeyPem) throw new Error('FIREBLOCKS_PRIVATE_KEY not configured');
 
-    const response = await fetch(apiUrl, {
+    const uri = vaultId ? `/v1/vault/accounts/${vaultId}` : '/v1/vault/accounts_paged';
+    const body = '';
+    const jwt = await createFireblocksJwt({ apiKey, privateKeyPem, uri, body });
+
+    const response = await fetch(`${baseUrl}${vaultId ? `/vault/accounts/${vaultId}` : '/vault/accounts_paged'}`, {
       method: 'GET',
       headers: {
-        'X-API-Key': fireblocksApiKey,
+        'X-API-Key': apiKey,
+        'Authorization': `Bearer ${jwt}`,
         'Content-Type': 'application/json',
       },
     });
 
-    const assetsData = await response.json();
-
+    const data = await response.json();
     if (!response.ok) {
-      console.error('Fireblocks API error:', assetsData);
-      return new Response(JSON.stringify({ error: assetsData.message || 'Failed to fetch assets' }), {
-        status: response.status,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+      console.error('Fireblocks API error (get assets):', data);
+      return new Response(JSON.stringify({ error: data.message || 'Failed to fetch assets' }), { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    console.log('Assets fetched successfully:', assetsData);
-
-    return new Response(JSON.stringify(assetsData), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
-
-  } catch (error) {
+    return new Response(JSON.stringify(data), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  } catch (error: any) {
     console.error('Error in fireblocks-get-assets:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
+    return new Response(JSON.stringify({ error: error.message || 'Internal Server Error' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 });
