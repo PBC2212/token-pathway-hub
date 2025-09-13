@@ -226,10 +226,10 @@ const Dashboard = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <FileText className="h-5 w-5" />
-              Agreement Documents
+              Onboarding Documents
             </CardTitle>
             <CardDescription>
-              Access and complete required tokenization agreements
+              Access and complete required onboarding documentation
             </CardDescription>
           </CardHeader>
           <CardContent>
