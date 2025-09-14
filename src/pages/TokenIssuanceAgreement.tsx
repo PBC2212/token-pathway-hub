@@ -44,7 +44,7 @@ const TokenIssuanceAgreement = () => {
             <iframe 
               src="https://www.cognitoforms.com/f/Z3KEFA9eyUCar-acXrCyqg/9" 
               allow="payment" 
-              style={{ border: 0, width: '100%' }} 
+              style={{border: 0, width: '100%'}} 
               height="2657"
               title="Token Issuance Agreement Form"
             />
