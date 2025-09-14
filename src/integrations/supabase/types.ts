@@ -228,45 +228,75 @@ export type Database = {
       pledges: {
         Row: {
           admin_notes: string | null
+          appraisal_date: string | null
           appraised_value: number
+          appraiser_license: string | null
           approved_at: string | null
           approved_by: string | null
           asset_type: string
+          contract_address: string | null
           created_at: string
+          description: string | null
+          document_hash: string | null
           id: string
+          nft_token_id: number | null
+          pledge_id: number
+          rejection_reason: string | null
           status: string
           token_amount: number
+          token_symbol: string | null
           tx_hash: string | null
           updated_at: string
           user_address: string
+          user_id: string | null
         }
         Insert: {
           admin_notes?: string | null
+          appraisal_date?: string | null
           appraised_value: number
+          appraiser_license?: string | null
           approved_at?: string | null
           approved_by?: string | null
           asset_type: string
+          contract_address?: string | null
           created_at?: string
+          description?: string | null
+          document_hash?: string | null
           id?: string
+          nft_token_id?: number | null
+          pledge_id: number
+          rejection_reason?: string | null
           status?: string
           token_amount: number
+          token_symbol?: string | null
           tx_hash?: string | null
           updated_at?: string
           user_address: string
+          user_id?: string | null
         }
         Update: {
           admin_notes?: string | null
+          appraisal_date?: string | null
           appraised_value?: number
+          appraiser_license?: string | null
           approved_at?: string | null
           approved_by?: string | null
           asset_type?: string
+          contract_address?: string | null
           created_at?: string
+          description?: string | null
+          document_hash?: string | null
           id?: string
+          nft_token_id?: number | null
+          pledge_id?: number
+          rejection_reason?: string | null
           status?: string
           token_amount?: number
+          token_symbol?: string | null
           tx_hash?: string | null
           updated_at?: string
           user_address?: string
+          user_id?: string | null
         }
         Relationships: []
       }
