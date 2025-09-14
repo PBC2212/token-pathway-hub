@@ -1,12 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Coins, DollarSign, TrendingUp, Building, Gem, Car, Palette, Wrench, Package } from 'lucide-react';
+import { ArrowLeft, Coins, DollarSign, TrendingUp, Building, Gem, Car, Palette, Wrench, Package, RefreshCw, AlertCircle, Activity } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 
 interface TokenBalance {
   id: string;
@@ -24,6 +25,7 @@ interface Pledge {
   token_amount: number;
   tx_hash: string;
   created_at: string;
+  status: 'pending' | 'approved' | 'rejected' | 'minted';
 }
 
 interface PledgeData {
@@ -43,12 +45,27 @@ interface BalanceData {
   totalUsdValue: number;
 }
 
+interface Transaction {
+  id: string;
+  type: 'pledge' | 'mint' | 'transfer';
+  asset_type?: string;
+  amount: number;
+  tx_hash: string;
+  status: 'pending' | 'confirmed' | 'failed';
+  created_at: string;
+}
+
 const TokenDashboard = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [walletAddress, setWalletAddress] = useState('');
   const [pledgeData, setPledgeData] = useState<PledgeData | null>(null);
   const [balanceData, setBalanceData] = useState<BalanceData | null>(null);
+  const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const assetTypeIcons = {
     real_estate: Building,
@@ -68,32 +85,103 @@ const TokenDashboard = () => {
     commodity: 'Commodity'
   } as const;
 
+  // Auto-refresh functionality
   useEffect(() => {
-    // Try to load wallet address from localStorage or user profile
+    if (autoRefresh && walletAddress) {
+      intervalRef.current = setInterval(() => {
+        fetchUserData(walletAddress, false); // Silent refresh
+      }, 30000); // Refresh every 30 seconds
+
+      return () => {
+        if (intervalRef.current) {
+          clearInterval(intervalRef.current);
+        }
+      };
+    }
+  }, [autoRefresh, walletAddress]);
+
+  // Listen for real-time updates from Supabase
+  useEffect(() => {
+    if (!user || !walletAddress) return;
+
+    const channel = supabase
+      .channel('token-dashboard-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'pledges',
+          filter: `user_address=eq.${walletAddress}`
+        },
+        (payload) => {
+          console.log('Pledge update received:', payload);
+          fetchUserData(walletAddress, false);
+          toast({
+            title: "Update Received",
+            description: "Your dashboard has been updated with new data.",
+          });
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'token_balances',
+          filter: `user_address=eq.${walletAddress}`
+        },
+        (payload) => {
+          console.log('Balance update received:', payload);
+          fetchUserData(walletAddress, false);
+          toast({
+            title: "Balance Updated",
+            description: "Your token balances have been updated.",
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, walletAddress]);
+
+  useEffect(() => {
+    // Load user data on component mount
     const loadUserData = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        // In a real app, you'd get the wallet address from user profile
-        // For demo purposes, we'll use a placeholder
-        const demoAddress = '0x742d35Cc6634C0532925a3b8D0b5D71c1A37bb2C';
-        setWalletAddress(demoAddress);
-        fetchUserData(demoAddress);
+      if (!user) return;
+      
+      try {
+        // Try to get wallet address from user profile
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('wallet_address')
+          .eq('user_id', user.id)
+          .single();
+
+        const address = profile?.wallet_address || '0x742d35Cc6634C0532925a3b8D0b5D71c1A37bb2C';
+        setWalletAddress(address);
+        fetchUserData(address);
+      } catch (error) {
+        console.error('Error loading user data:', error);
       }
     };
     
     loadUserData();
-  }, []);
+  }, [user]);
 
-  const fetchUserData = async (address: string) => {
+  const fetchUserData = async (address: string, showLoading = true) => {
     if (!address) return;
     
-    setIsLoading(true);
+    if (showLoading) setIsLoading(true);
+    
     try {
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session) {
         toast({
-          title: 'Error',
+          title: 'Authentication Required',
           description: 'Please sign in to view your tokens',
           variant: 'destructive'
         });
@@ -107,7 +195,12 @@ const TokenDashboard = () => {
 
       if (pledgesError) {
         console.error('Error fetching pledges:', pledgesError);
-      } else {
+        toast({
+          title: 'Error',
+          description: 'Failed to load pledge data',
+          variant: 'destructive'
+        });
+      } else if (pledgesResponse) {
         setPledgeData(pledgesResponse);
       }
 
@@ -118,9 +211,30 @@ const TokenDashboard = () => {
 
       if (balancesError) {
         console.error('Error fetching balances:', balancesError);
-      } else {
+        toast({
+          title: 'Error',
+          description: 'Failed to load balance data',
+          variant: 'destructive'
+        });
+      } else if (balancesResponse) {
         setBalanceData(balancesResponse);
       }
+
+      // Fetch recent transactions
+      const { data: transactions, error: transactionsError } = await supabase
+        .from('transactions')
+        .select('*')
+        .eq('user_address', address)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (transactionsError) {
+        console.error('Error fetching transactions:', transactionsError);
+      } else {
+        setRecentTransactions(transactions || []);
+      }
+
+      setLastUpdated(new Date());
 
     } catch (error) {
       console.error('Error fetching user data:', error);
@@ -130,7 +244,7 @@ const TokenDashboard = () => {
         variant: 'destructive'
       });
     } finally {
-      setIsLoading(false);
+      if (showLoading) setIsLoading(false);
     }
   };
 
@@ -141,13 +255,52 @@ const TokenDashboard = () => {
     }
   };
 
+  const handleManualRefresh = () => {
+    if (walletAddress) {
+      fetchUserData(walletAddress);
+    }
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
-      day: 'numeric'
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
     });
   };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'approved':
+      case 'confirmed':
+      case 'minted':
+        return <Badge className="bg-green-100 text-green-800 border-green-200">Confirmed</Badge>;
+      case 'pending':
+        return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">Pending</Badge>;
+      case 'rejected':
+      case 'failed':
+        return <Badge className="bg-red-100 text-red-800 border-red-200">Failed</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
+  };
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5 flex items-center justify-center">
+        <Card className="p-6">
+          <CardContent className="text-center">
+            <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <h2 className="text-xl font-semibold mb-2">Authentication Required</h2>
+            <p className="text-muted-foreground mb-4">Please sign in to view your token dashboard</p>
+            <Button onClick={() => navigate('/auth')}>Sign In</Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5">
@@ -162,9 +315,21 @@ const TokenDashboard = () => {
             Back to Dashboard
           </Button>
 
-          <Button onClick={() => navigate('/pledge')}>
-            Pledge New Asset
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleManualRefresh}
+              disabled={isLoading}
+              className="flex items-center gap-2"
+            >
+              <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+            <Button onClick={() => navigate('/pledge')}>
+              Pledge New Asset
+            </Button>
+          </div>
         </div>
 
         <div className="space-y-8">
@@ -177,12 +342,31 @@ const TokenDashboard = () => {
             <p className="text-muted-foreground">
               View your tokenized assets and token balances
             </p>
+            {lastUpdated && (
+              <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                <Activity className="h-4 w-4" />
+                Last updated: {formatDate(lastUpdated.toISOString())}
+              </div>
+            )}
           </div>
 
           {/* Wallet Address Input */}
           <Card>
             <CardHeader>
-              <CardTitle>Wallet Address</CardTitle>
+              <CardTitle className="flex items-center justify-between">
+                Wallet Address
+                <div className="flex items-center gap-2">
+                  <label className="text-sm text-muted-foreground flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={autoRefresh}
+                      onChange={(e) => setAutoRefresh(e.target.checked)}
+                      className="rounded"
+                    />
+                    Auto-refresh
+                  </label>
+                </div>
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleAddressSubmit} className="flex gap-4">
@@ -255,9 +439,10 @@ const TokenDashboard = () => {
 
           {/* Main Content */}
           <Tabs defaultValue="pledges" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="pledges">Asset Pledges</TabsTrigger>
               <TabsTrigger value="balances">Token Balances</TabsTrigger>
+              <TabsTrigger value="transactions">Recent Activity</TabsTrigger>
               <TabsTrigger value="breakdown">Asset Breakdown</TabsTrigger>
             </TabsList>
 
@@ -282,6 +467,9 @@ const TokenDashboard = () => {
                                 <p className="text-sm text-muted-foreground">
                                   Pledged on {formatDate(pledge.created_at)}
                                 </p>
+                                <div className="mt-1">
+                                  {getStatusBadge(pledge.status)}
+                                </div>
                               </div>
                             </div>
                             <div className="text-right">
@@ -289,6 +477,11 @@ const TokenDashboard = () => {
                               <p className="text-sm text-muted-foreground">
                                 {pledge.token_amount.toLocaleString()} tokens
                               </p>
+                              {pledge.tx_hash && (
+                                <p className="text-xs text-muted-foreground font-mono">
+                                  {pledge.tx_hash.substring(0, 10)}...
+                                </p>
+                              )}
                             </div>
                           </div>
                         );
@@ -338,6 +531,48 @@ const TokenDashboard = () => {
                   ) : (
                     <div className="text-center py-8">
                       <p className="text-muted-foreground">No token balances found</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="transactions" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Recent Activity</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {recentTransactions.length ? (
+                    <div className="space-y-4">
+                      {recentTransactions.map((tx) => (
+                        <div key={tx.id} className="flex items-center justify-between p-4 border rounded-lg">
+                          <div className="flex items-center gap-4">
+                            <Activity className="h-6 w-6 text-primary" />
+                            <div>
+                              <h3 className="font-semibold capitalize">{tx.type}</h3>
+                              <p className="text-sm text-muted-foreground">
+                                {formatDate(tx.created_at)}
+                              </p>
+                              {tx.tx_hash && (
+                                <p className="text-xs text-muted-foreground font-mono">
+                                  {tx.tx_hash.substring(0, 16)}...
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-semibold">{tx.amount.toLocaleString()}</p>
+                            <div className="mt-1">
+                              {getStatusBadge(tx.status)}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <p className="text-muted-foreground">No recent transactions found</p>
                     </div>
                   )}
                 </CardContent>

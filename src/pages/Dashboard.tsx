@@ -7,10 +7,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import VaultManager from '@/components/VaultManager';
-import { LogOut, Shield, FileText, Users, Building, Briefcase, User, Mail, Calendar, Vault, Settings, Coins, TrendingUp, DollarSign, Droplets } from 'lucide-react';
+import { LogOut, Shield, FileText, Users, Building, Briefcase, User, Mail, Calendar, Vault, Settings, Coins, TrendingUp, DollarSign, Droplets, ExternalLink, Clock, CheckCircle } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
-import CognitoFormEmbed from '@/components/CognitoFormEmbed';
 
 interface Profile {
   id: string;
@@ -66,9 +65,9 @@ const Dashboard = () => {
   const getKYCStatusBadge = (status: string) => {
     switch (status) {
       case 'approved':
-        return <Badge className="bg-green-100 text-green-800 border-green-200">Verified</Badge>;
+        return <Badge className="bg-green-100 text-green-800 border-green-200"><CheckCircle className="h-3 w-3 mr-1" />Verified</Badge>;
       case 'pending':
-        return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200">Pending</Badge>;
+        return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200"><Clock className="h-3 w-3 mr-1" />Pending</Badge>;
       case 'rejected':
         return <Badge className="bg-red-100 text-red-800 border-red-200">Rejected</Badge>;
       default:
@@ -110,6 +109,75 @@ const Dashboard = () => {
     }
   ];
 
+  const documentSections = [
+    {
+      title: "Core Agreements",
+      description: "Essential legal documents for tokenization",
+      documents: [
+        {
+          name: "Property Pledge Agreement",
+          description: "Pledge property for tokenization",
+          route: '/property-pledge-agreement',
+          icon: Building
+        },
+        {
+          name: "Token Issuance Agreement", 
+          description: "Define token issuance terms",
+          route: '/token-issuance-agreement',
+          icon: Coins
+        },
+        {
+          name: "Subscription Agreement",
+          description: "Subscribe to token offerings",
+          route: '/subscription-agreement',
+          icon: FileText
+        },
+        {
+          name: "Operating Agreement (SPV/LLC)",
+          description: "Entity operating structure",
+          route: '/operating-agreement',
+          icon: Building
+        }
+      ]
+    },
+    {
+      title: "Token Holder Documents",
+      description: "Rights, duties, and compliance requirements",
+      documents: [
+        {
+          name: "Token Holder Agreement",
+          description: "Token holder rights and duties",
+          route: '/token-holder-agreement',
+          icon: Users
+        },
+        {
+          name: "KYC/AML Policy",
+          description: "Identity verification requirements",
+          route: '/kyc-aml-policy',
+          icon: Shield
+        }
+      ]
+    },
+    {
+      title: "Operational Policies",
+      description: "Platform operations and trading policies",
+      documents: [
+        {
+          name: "Custody & Tokenization Policy",
+          description: "Asset custody and tokenization terms",
+          route: '/custody-tokenization-policy',
+          icon: Vault
+        },
+        {
+          name: "Swap/Settlement Agreement",
+          description: "Token trading and settlement terms",
+          route: '/swap-settlement-agreement',
+          icon: TrendingUp
+        }
+      ]
+    }
+  ];
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -133,10 +201,13 @@ const Dashboard = () => {
               <p className="text-muted-foreground">Welcome back, {profile?.full_name || user.email}</p>
             </div>
           </div>
-          <Button variant="outline" onClick={signOut} className="flex items-center gap-2">
-            <LogOut className="h-4 w-4" />
-            Sign Out
-          </Button>
+          <div className="flex items-center gap-3">
+            {profile?.kyc_status && getKYCStatusBadge(profile.kyc_status)}
+            <Button variant="outline" onClick={signOut} className="flex items-center gap-2">
+              <LogOut className="h-4 w-4" />
+              Sign Out
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -160,10 +231,30 @@ const Dashboard = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-muted-foreground">
+                <p className="text-muted-foreground mb-4">
                   Access your secure platform for tokenizing real-world assets, managing Fireblocks vaults, 
                   completing documentation, and coordinating with all stakeholders in your tokenization journey.
                 </p>
+                
+                {/* Quick Stats */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+                  <div className="text-center p-4 bg-primary/5 rounded-lg">
+                    <div className="text-2xl font-bold text-primary">0</div>
+                    <div className="text-sm text-muted-foreground">Assets Pledged</div>
+                  </div>
+                  <div className="text-center p-4 bg-green-50 rounded-lg">
+                    <div className="text-2xl font-bold text-green-600">0</div>
+                    <div className="text-sm text-muted-foreground">Tokens Minted</div>
+                  </div>
+                  <div className="text-center p-4 bg-blue-50 rounded-lg">
+                    <div className="text-2xl font-bold text-blue-600">0</div>
+                    <div className="text-sm text-muted-foreground">Active Vaults</div>
+                  </div>
+                  <div className="text-center p-4 bg-purple-50 rounded-lg">
+                    <div className="text-2xl font-bold text-purple-600">0</div>
+                    <div className="text-sm text-muted-foreground">Documents Signed</div>
+                  </div>
+                </div>
               </CardContent>
             </Card>
 
@@ -189,39 +280,39 @@ const Dashboard = () => {
 
           <TabsContent value="tokenization" className="space-y-6">
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                  <Card className="p-6 hover:shadow-md transition-shadow cursor-pointer" onClick={() => navigate('/pledge')}>
-                    <div className="flex items-center gap-4">
-                      <div className="p-3 rounded-lg bg-primary/10">
-                        <Coins className="h-6 w-6 text-primary" />
-                      </div>
-                      <div>
-                        <h3 className="font-semibold">Pledge Assets</h3>
-                        <p className="text-sm text-muted-foreground">
-                          Submit your real-world assets for approval and tokenization
-                        </p>
-                      </div>
-                    </div>
-                    <Button className="w-full mt-4">
-                      Pledge Asset
-                    </Button>
-                  </Card>
+              <Card className="p-6 hover:shadow-md transition-shadow cursor-pointer" onClick={() => navigate('/pledge')}>
+                <div className="flex items-center gap-4">
+                  <div className="p-3 rounded-lg bg-primary/10">
+                    <Coins className="h-6 w-6 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold">Pledge Assets</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Submit your real-world assets for approval and tokenization
+                    </p>
+                  </div>
+                </div>
+                <Button className="w-full mt-4">
+                  Pledge Asset
+                </Button>
+              </Card>
 
-                  <Card className="p-6 hover:shadow-md transition-shadow cursor-pointer" onClick={() => navigate('/mint')}>
-                    <div className="flex items-center gap-4">
-                      <div className="p-3 rounded-lg bg-green-100">
-                        <Coins className="h-6 w-6 text-green-600" />
-                      </div>
-                      <div>
-                        <h3 className="font-semibold">Mint Tokens</h3>
-                        <p className="text-sm text-muted-foreground">
-                          Mint digital tokens for your approved asset pledges
-                        </p>
-                      </div>
-                    </div>
-                    <Button className="w-full mt-4">
-                      Mint Tokens
-                    </Button>
-                  </Card>
+              <Card className="p-6 hover:shadow-md transition-shadow cursor-pointer" onClick={() => navigate('/mint')}>
+                <div className="flex items-center gap-4">
+                  <div className="p-3 rounded-lg bg-green-100">
+                    <Coins className="h-6 w-6 text-green-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold">Mint Tokens</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Mint digital tokens for your approved asset pledges
+                    </p>
+                  </div>
+                </div>
+                <Button className="w-full mt-4">
+                  Mint Tokens
+                </Button>
+              </Card>
 
               <Card>
                 <CardHeader>
@@ -319,122 +410,47 @@ const Dashboard = () => {
           </TabsContent>
 
           <TabsContent value="documents" className="space-y-6">
-            {/* Onboarding Documents Section */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5" />
-                  Onboarding Documents
-                </CardTitle>
-                <CardDescription>
-                  Access and complete required onboarding documentation
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <Button 
-                    variant="outline" 
-                    className="h-auto p-4 justify-start"
-                    onClick={() => navigate('/property-pledge-agreement')}
-                  >
-                    <div className="text-left">
-                      <h3 className="font-medium">Property Pledge Agreement</h3>
-                      <p className="text-sm text-muted-foreground">Pledge property for tokenization</p>
-                    </div>
-                  </Button>
-                  
-                  <Button 
-                    variant="outline" 
-                    className="h-auto p-4 justify-start"
-                    onClick={() => navigate('/token-issuance-agreement')}
-                  >
-                    <div className="text-left">
-                      <h3 className="font-medium">Token Issuance Agreement</h3>
-                      <p className="text-sm text-muted-foreground">Define token issuance terms</p>
-                    </div>
-                  </Button>
-                  
-                  <Button 
-                    variant="outline" 
-                    className="h-auto p-4 justify-start"
-                    onClick={() => window.location.href = '/subscription-agreement'}
-                  >
-                    <div className="text-left">
-                      <h3 className="font-medium">Subscription Agreement</h3>
-                      <p className="text-sm text-muted-foreground">Subscribe to token offerings</p>
-                    </div>
-                  </Button>
-                  
-                  <Button 
-                    variant="outline" 
-                    className="h-auto p-4 justify-start"
-                    onClick={() => window.location.href = '/operating-agreement'}
-                  >
-                    <div className="text-left">
-                      <h3 className="font-medium">Operating Agreement (SPV/LLC)</h3>
-                      <p className="text-sm text-muted-foreground">Entity operating structure</p>
-                    </div>
-                  </Button>
-                  
-                  <Button 
-                    variant="outline" 
-                    className="h-auto p-4 justify-start"
-                    onClick={() => window.location.href = '/token-holder-agreement'}
-                  >
-                    <div className="text-left">
-                      <h3 className="font-medium">Token Holder Agreement</h3>
-                      <p className="text-sm text-muted-foreground">Token holder rights and duties</p>
-                    </div>
-                  </Button>
-                  
-                  <Button 
-                    variant="outline" 
-                    className="h-auto p-4 justify-start"
-                    onClick={() => window.location.href = '/kyc-aml-policy'}
-                  >
-                    <div className="text-left">
-                      <h3 className="font-medium">KYC/AML Policy</h3>
-                      <p className="text-sm text-muted-foreground">Identity verification requirements</p>
-                    </div>
-                  </Button>
-                  
-                  <Button 
-                    variant="outline" 
-                    className="h-auto p-4 justify-start"
-                    onClick={() => window.location.href = '/custody-tokenization-policy'}
-                  >
-                    <div className="text-left">
-                      <h3 className="font-medium">Custody & Tokenization Policy</h3>
-                      <p className="text-sm text-muted-foreground">Asset custody and tokenization terms</p>
-                    </div>
-                  </Button>
-                  
-                  <Button 
-                    variant="outline" 
-                    className="h-auto p-4 justify-start"
-                    onClick={() => window.location.href = '/swap-settlement-agreement'}
-                  >
-                    <div className="text-left">
-                      <h3 className="font-medium">Swap/Settlement Agreement</h3>
-                      <p className="text-sm text-muted-foreground">Token trading and settlement terms</p>
-                    </div>
-                  </Button>
-              </div>
-              <div className="mt-6 space-y-2">
-                <h3 className="text-lg font-semibold">Token Issuance Agreement</h3>
-                <p className="text-sm text-muted-foreground">Complete the Token Issuance Agreement below.</p>
-                <CognitoFormEmbed 
-                  src="https://www.cognitoforms.com/f/Z3KEFA9eyUCar-acXrCyqg/9" 
-                  height={2620} 
-                  title="Token Issuance Agreement Form" 
-                />
-              </div>
-              </CardContent>
+            {/* Enhanced Documents Section */}
+            {documentSections.map((section, sectionIndex) => (
+              <Card key={sectionIndex}>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="h-5 w-5" />
+                    {section.title}
+                  </CardTitle>
+                  <CardDescription>
+                    {section.description}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {section.documents.map((doc, docIndex) => (
+                      <Button 
+                        key={docIndex}
+                        variant="outline" 
+                        className="h-auto p-4 justify-start hover:bg-primary/5"
+                        onClick={() => navigate(doc.route)}
+                      >
+                        <div className="flex items-center gap-3 w-full">
+                          <div className="p-2 rounded-lg bg-primary/10">
+                            <doc.icon className="h-4 w-4 text-primary" />
+                          </div>
+                          <div className="text-left flex-1">
+                            <h3 className="font-medium">{doc.name}</h3>
+                            <p className="text-sm text-muted-foreground">{doc.description}</p>
+                          </div>
+                          <ExternalLink className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                      </Button>
+                    ))}
+                  </div>
+                </CardContent>
               </Card>
+            ))}
           </TabsContent>
 
           <TabsContent value="profile" className="space-y-6">
-            {/* User Profile Section */}
+            {/* Enhanced User Profile Section */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -443,23 +459,23 @@ const Dashboard = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-3">
+                <div className="grid gap-6 md:grid-cols-2">
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
                       <User className="h-4 w-4 text-muted-foreground" />
                       <div>
                         <p className="text-sm font-medium">Full Name</p>
                         <p className="text-sm text-muted-foreground">{profile?.full_name || 'Not provided'}</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
                       <Mail className="h-4 w-4 text-muted-foreground" />
                       <div>
                         <p className="text-sm font-medium">Email</p>
                         <p className="text-sm text-muted-foreground">{profile?.email}</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
                       <Calendar className="h-4 w-4 text-muted-foreground" />
                       <div>
                         <p className="text-sm font-medium">Member Since</p>
@@ -469,14 +485,27 @@ const Dashboard = () => {
                       </div>
                     </div>
                   </div>
-                  <div className="space-y-3">
-                    <div>
+                  <div className="space-y-4">
+                    <div className="p-3 bg-muted/50 rounded-lg">
                       <p className="text-sm font-medium mb-2">Account Role</p>
                       {profile?.role && getRoleBadge(profile.role)}
                     </div>
-                    <div>
+                    <div className="p-3 bg-muted/50 rounded-lg">
                       <p className="text-sm font-medium mb-2">KYC Status</p>
                       {profile?.kyc_status && getKYCStatusBadge(profile.kyc_status)}
+                    </div>
+                    <div className="p-3 bg-muted/50 rounded-lg">
+                      <p className="text-sm font-medium mb-2">Account Actions</p>
+                      <div className="space-y-2">
+                        <Button variant="outline" size="sm" className="w-full">
+                          <Settings className="h-4 w-4 mr-2" />
+                          Account Settings
+                        </Button>
+                        <Button variant="outline" size="sm" className="w-full">
+                          <Shield className="h-4 w-4 mr-2" />
+                          Security Settings
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </div>
