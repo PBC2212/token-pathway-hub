@@ -10,6 +10,7 @@ import VaultManager from '@/components/VaultManager';
 import { LogOut, Shield, FileText, Users, Building, Briefcase, User, Mail, Calendar, Vault, Settings, Coins, TrendingUp, DollarSign, Droplets } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
+import CognitoFormEmbed from '@/components/CognitoFormEmbed';
 
 interface Profile {
   id: string;
@@ -416,9 +417,18 @@ const Dashboard = () => {
                       <p className="text-sm text-muted-foreground">Token trading and settlement terms</p>
                     </div>
                   </Button>
-                </div>
+              </div>
+              <div className="mt-6 space-y-2">
+                <h3 className="text-lg font-semibold">Token Issuance Agreement</h3>
+                <p className="text-sm text-muted-foreground">Complete the Token Issuance Agreement below.</p>
+                <CognitoFormEmbed 
+                  src="https://www.cognitoforms.com/f/Z3KEFA9eyUCar-acXrCyqg/9" 
+                  height={2657} 
+                  title="Token Issuance Agreement Form" 
+                />
+              </div>
               </CardContent>
-            </Card>
+              </Card>
           </TabsContent>
 
           <TabsContent value="profile" className="space-y-6">
