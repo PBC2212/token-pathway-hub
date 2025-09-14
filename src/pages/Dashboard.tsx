@@ -423,7 +423,7 @@ const Dashboard = () => {
                 <p className="text-sm text-muted-foreground">Complete the Token Issuance Agreement below.</p>
                 <CognitoFormEmbed 
                   src="https://www.cognitoforms.com/f/Z3KEFA9eyUCar-acXrCyqg/9" 
-                  height={2657} 
+                  height={2620} 
                   title="Token Issuance Agreement Form" 
                 />
               </div>
