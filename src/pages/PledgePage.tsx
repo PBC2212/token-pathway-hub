@@ -119,9 +119,13 @@ const PledgePage = () => {
         throw new Error('File size must be less than 10MB');
       }
 
-      // Validate file type
-      const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'image/jpeg', 'image/png', 'image/jpg'];
-      if (!allowedTypes.includes(file.type)) {
+      // Validate file type with MIME fallback to extension
+      const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'image/jpeg', 'image/png', 'image/jpg'] as const;
+      const allowedExts = ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'] as const;
+      const byMime = allowedTypes.includes(file.type as any);
+      const ext = file.name.split('.').pop()?.toLowerCase();
+      const byExt = !!ext && (allowedExts as readonly string[]).includes(ext);
+      if (!(byMime || byExt)) {
         throw new Error('Please upload a PDF, DOC, DOCX, JPG, or PNG file');
       }
 

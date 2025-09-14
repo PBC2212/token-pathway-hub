@@ -80,6 +80,9 @@ verify_jwt = true
 [functions.liquidity-add-remove]
 verify_jwt = true
 
+[functions.check-fireblocks-status]
+verify_jwt = false
+
 [analytics]
 enabled = false
 port = 54327

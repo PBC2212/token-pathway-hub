@@ -51,9 +51,11 @@ serve(async (req) => {
     const pledgeId = Math.floor(Date.now() / 1000) + Math.floor(Math.random() * 1000)
 
     const pledgeRecord = {
+      user_id: user.id,
       user_address: pledgeData.user_address,
       asset_type: pledgeData.asset_type,
       appraised_value: pledgeData.appraised_value,
+      token_amount: 0,
       token_symbol: pledgeData.token_symbol || `${pledgeData.asset_type.toUpperCase()}${pledgeId}`,
       contract_address: pledgeData.contract_address || '',
       description: pledgeData.description,
