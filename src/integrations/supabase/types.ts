@@ -61,6 +61,7 @@ export type Database = {
           transaction_id: string
           transaction_type: string
           user_address: string | null
+          user_id: string | null
         }
         Insert: {
           completed_at?: string | null
@@ -72,6 +73,7 @@ export type Database = {
           transaction_id: string
           transaction_type: string
           user_address?: string | null
+          user_id?: string | null
         }
         Update: {
           completed_at?: string | null
@@ -83,6 +85,7 @@ export type Database = {
           transaction_id?: string
           transaction_type?: string
           user_address?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
