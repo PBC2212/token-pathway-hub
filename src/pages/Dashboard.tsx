@@ -28,13 +28,15 @@ const Dashboard = () => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
+  useEffect(() => {
+    if (user) {
+      fetchUserProfile();
+    }
+  }, [user]);
+
   if (!user) {
     return <Navigate to="/auth" replace />;
   }
-
-  useEffect(() => {
-    fetchUserProfile();
-  }, [user]);
 
   const fetchUserProfile = async () => {
     try {
