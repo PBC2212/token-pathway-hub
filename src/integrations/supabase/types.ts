@@ -50,6 +50,42 @@ export type Database = {
         }
         Relationships: []
       }
+      blockchain_transactions: {
+        Row: {
+          completed_at: string | null
+          contract_address: string | null
+          created_at: string | null
+          id: string
+          status: string | null
+          transaction_data: Json | null
+          transaction_id: string
+          transaction_type: string
+          user_address: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          contract_address?: string | null
+          created_at?: string | null
+          id?: string
+          status?: string | null
+          transaction_data?: Json | null
+          transaction_id: string
+          transaction_type: string
+          user_address?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          contract_address?: string | null
+          created_at?: string | null
+          id?: string
+          status?: string | null
+          transaction_data?: Json | null
+          transaction_id?: string
+          transaction_type?: string
+          user_address?: string | null
+        }
+        Relationships: []
+      }
       cognito_submissions: {
         Row: {
           cognito_entry_id: string
@@ -244,6 +280,7 @@ export type Database = {
           role: string | null
           updated_at: string
           user_id: string
+          wallet_address: string | null
         }
         Insert: {
           created_at?: string
@@ -254,6 +291,7 @@ export type Database = {
           role?: string | null
           updated_at?: string
           user_id: string
+          wallet_address?: string | null
         }
         Update: {
           created_at?: string
@@ -264,6 +302,7 @@ export type Database = {
           role?: string | null
           updated_at?: string
           user_id?: string
+          wallet_address?: string | null
         }
         Relationships: []
       }
