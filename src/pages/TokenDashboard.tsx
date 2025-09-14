@@ -22,10 +22,9 @@ interface Pledge {
   user_address: string;
   asset_type: string;
   appraised_value: number;
-  token_amount: number;
-  tx_hash: string;
+  token_amount?: number;
   created_at: string;
-  status: 'pending' | 'approved' | 'rejected' | 'minted';
+  status: string;
 }
 
 interface PledgeData {
@@ -47,12 +46,14 @@ interface BalanceData {
 
 interface Transaction {
   id: string;
-  type: 'pledge' | 'mint' | 'transfer';
-  asset_type?: string;
-  amount: number;
-  tx_hash: string;
-  status: 'pending' | 'confirmed' | 'failed';
+  transaction_id: string;
+  transaction_type: string;
+  user_address?: string;
+  contract_address?: string;
+  transaction_data?: any;
+  status: string;
   created_at: string;
+  completed_at?: string;
 }
 
 const TokenDashboard = () => {
@@ -222,7 +223,7 @@ const TokenDashboard = () => {
 
       // Fetch recent transactions
       const { data: transactions, error: transactionsError } = await supabase
-        .from('transactions')
+        .from('blockchain_transactions')
         .select('*')
         .eq('user_address', address)
         .order('created_at', { ascending: false })
@@ -475,13 +476,8 @@ const TokenDashboard = () => {
                             <div className="text-right">
                               <p className="font-semibold">${pledge.appraised_value.toLocaleString()}</p>
                               <p className="text-sm text-muted-foreground">
-                                {pledge.token_amount.toLocaleString()} tokens
+                                {pledge.token_amount?.toLocaleString() || 0} tokens
                               </p>
-                              {pledge.tx_hash && (
-                                <p className="text-xs text-muted-foreground font-mono">
-                                  {pledge.tx_hash.substring(0, 10)}...
-                                </p>
-                              )}
                             </div>
                           </div>
                         );
@@ -550,19 +546,19 @@ const TokenDashboard = () => {
                           <div className="flex items-center gap-4">
                             <Activity className="h-6 w-6 text-primary" />
                             <div>
-                              <h3 className="font-semibold capitalize">{tx.type}</h3>
+                              <h3 className="font-semibold capitalize">{tx.transaction_type}</h3>
                               <p className="text-sm text-muted-foreground">
                                 {formatDate(tx.created_at)}
                               </p>
-                              {tx.tx_hash && (
+                              {tx.transaction_id && (
                                 <p className="text-xs text-muted-foreground font-mono">
-                                  {tx.tx_hash.substring(0, 16)}...
+                                  {tx.transaction_id.substring(0, 16)}...
                                 </p>
                               )}
                             </div>
                           </div>
                           <div className="text-right">
-                            <p className="font-semibold">{tx.amount.toLocaleString()}</p>
+                            <p className="font-semibold">Transaction</p>
                             <div className="mt-1">
                               {getStatusBadge(tx.status)}
                             </div>
