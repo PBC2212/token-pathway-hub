@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Pausable.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
-import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "./interfaces/IAssetMetadata.sol";
 
 /**
@@ -24,20 +24,7 @@ abstract contract BaseAssetToken is
     bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
     bytes32 public constant COMPLIANCE_ROLE = keccak256("COMPLIANCE_ROLE");
     
-    // Asset metadata storage
-    struct AssetMetadata {
-        string assetType;
-        string description;
-        string location;
-        uint256 appraisedValue;
-        uint256 appraisalDate;
-        string appraisalCompany;
-        string documentHash; // IPFS hash or document fingerprint
-        bool isVerified;
-        uint256 createdAt;
-    }
-    
-    // Token to asset mapping
+    // Token to asset mapping - using imported AssetMetadata struct
     mapping(uint256 => AssetMetadata) public assets;
     mapping(address => uint256[]) public ownerAssets;
     
@@ -46,7 +33,7 @@ abstract contract BaseAssetToken is
     mapping(address => bool) public whitelistedAddresses;
     bool public complianceEnabled = true;
     
-    uint256 private _currentAssetId;
+    uint256 internal _currentAssetId;
     uint256 public maxSupply;
     
     // Events
@@ -277,6 +264,50 @@ abstract contract BaseAssetToken is
         returns (uint256[] memory) 
     {
         return ownerAssets[owner];
+    }
+    
+    /**
+     * @dev Get current asset ID
+     */
+    function getCurrentAssetId() external view returns (uint256) {
+        return _currentAssetId;
+    }
+    
+    /**
+     * @dev Simple mint function (for compatibility with external contracts)
+     */
+    function mint(address to, uint256 amount) external onlyRole(MINTER_ROLE) {
+        require(to != address(0), "Cannot mint to zero address");
+        require(amount > 0, "Amount must be greater than zero");
+        
+        if (totalSupply() + amount > maxSupply) {
+            revert ExceedsMaxSupply(totalSupply() + amount, maxSupply);
+        }
+        
+        // Compliance check
+        if (complianceEnabled && blacklistedAddresses[to]) {
+            revert BlacklistedAddress(to);
+        }
+        
+        _mint(to, amount);
+    }
+    
+    /**
+     * @dev Burn tokens from account (with allowance check)
+     */
+    function burnFrom(address from, uint256 amount) external {
+        require(from != address(0), "Cannot burn from zero address");
+        require(amount > 0, "Amount must be greater than zero");
+        
+        uint256 currentAllowance = allowance(from, msg.sender);
+        if (currentAllowance != type(uint256).max) {
+            if (currentAllowance < amount) {
+                revert InsufficientAllowance(amount, currentAllowance);
+            }
+            _approve(from, msg.sender, currentAllowance - amount);
+        }
+        
+        _burn(from, amount);
     }
     
     /**

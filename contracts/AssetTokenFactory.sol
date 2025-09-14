@@ -2,17 +2,11 @@
 pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/access/AccessControl.sol";
-import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import "./RealEstateToken.sol";
-import "./GoldToken.sol";
-import "./VehicleToken.sol";
-import "./ArtToken.sol";
-import "./EquipmentToken.sol";
-import "./CommodityToken.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 /**
  * @title AssetTokenFactory
- * @dev Factory contract for deploying and managing asset-specific token contracts
+ * @dev Minimal factory contract for deploying asset tokens via CREATE2
  */
 contract AssetTokenFactory is AccessControl, ReentrancyGuard {
     bytes32 public constant DEPLOYER_ROLE = keccak256("DEPLOYER_ROLE");
@@ -51,153 +45,41 @@ contract AssetTokenFactory is AccessControl, ReentrancyGuard {
     }
     
     /**
-     * @dev Deploy a new Real Estate Token contract
+     * @dev Deploy a contract using CREATE2 with provided bytecode
      */
-    function deployRealEstateToken(address admin) 
-        external 
-        onlyRole(DEPLOYER_ROLE) 
-        nonReentrant 
-        returns (address) 
-    {
-        require(admin != address(0), "Invalid admin address");
+    function deployContract(
+        bytes memory bytecode,
+        bytes32 salt,
+        string memory assetType,
+        string memory name,
+        string memory symbol
+    ) external onlyRole(DEPLOYER_ROLE) nonReentrant returns (address) {
+        address contractAddress;
         
-        RealEstateToken newContract = new RealEstateToken(admin);
-        address contractAddress = address(newContract);
+        assembly {
+            contractAddress := create2(0, add(bytecode, 0x20), mload(bytecode), salt)
+        }
         
-        _registerContract(
-            contractAddress,
-            "real_estate",
-            "Real Estate Token",
-            "RET",
-            msg.sender
-        );
+        require(contractAddress != address(0), "Deployment failed");
+        
+        _registerContract(contractAddress, assetType, name, symbol, msg.sender);
         
         return contractAddress;
     }
     
     /**
-     * @dev Deploy a new Gold Token contract
+     * @dev Register a pre-deployed contract
      */
-    function deployGoldToken(address admin) 
-        external 
-        onlyRole(DEPLOYER_ROLE) 
-        nonReentrant 
-        returns (address) 
-    {
-        require(admin != address(0), "Invalid admin address");
+    function registerContract(
+        address contractAddress,
+        string memory assetType,
+        string memory name,
+        string memory symbol
+    ) external onlyRole(DEPLOYER_ROLE) {
+        require(contractAddress != address(0), "Invalid contract address");
+        require(contractAddress.code.length > 0, "Not a contract");
         
-        GoldToken newContract = new GoldToken(admin);
-        address contractAddress = address(newContract);
-        
-        _registerContract(
-            contractAddress,
-            "gold",
-            "Gold Token",
-            "GLD",
-            msg.sender
-        );
-        
-        return contractAddress;
-    }
-    
-    /**
-     * @dev Deploy a new Vehicle Token contract
-     */
-    function deployVehicleToken(address admin) 
-        external 
-        onlyRole(DEPLOYER_ROLE) 
-        nonReentrant 
-        returns (address) 
-    {
-        require(admin != address(0), "Invalid admin address");
-        
-        VehicleToken newContract = new VehicleToken(admin);
-        address contractAddress = address(newContract);
-        
-        _registerContract(
-            contractAddress,
-            "vehicle",
-            "Vehicle Token",
-            "VET",
-            msg.sender
-        );
-        
-        return contractAddress;
-    }
-    
-    /**
-     * @dev Deploy a new Art Token contract
-     */
-    function deployArtToken(address admin) 
-        external 
-        onlyRole(DEPLOYER_ROLE) 
-        nonReentrant 
-        returns (address) 
-    {
-        require(admin != address(0), "Invalid admin address");
-        
-        ArtToken newContract = new ArtToken(admin);
-        address contractAddress = address(newContract);
-        
-        _registerContract(
-            contractAddress,
-            "art",
-            "Art Token",
-            "ART",
-            msg.sender
-        );
-        
-        return contractAddress;
-    }
-    
-    /**
-     * @dev Deploy a new Equipment Token contract
-     */
-    function deployEquipmentToken(address admin) 
-        external 
-        onlyRole(DEPLOYER_ROLE) 
-        nonReentrant 
-        returns (address) 
-    {
-        require(admin != address(0), "Invalid admin address");
-        
-        EquipmentToken newContract = new EquipmentToken(admin);
-        address contractAddress = address(newContract);
-        
-        _registerContract(
-            contractAddress,
-            "equipment",
-            "Equipment Token",
-            "EQT",
-            msg.sender
-        );
-        
-        return contractAddress;
-    }
-    
-    /**
-     * @dev Deploy a new Commodity Token contract
-     */
-    function deployCommodityToken(address admin) 
-        external 
-        onlyRole(DEPLOYER_ROLE) 
-        nonReentrant 
-        returns (address) 
-    {
-        require(admin != address(0), "Invalid admin address");
-        
-        CommodityToken newContract = new CommodityToken(admin);
-        address contractAddress = address(newContract);
-        
-        _registerContract(
-            contractAddress,
-            "commodity",
-            "Commodity Token",
-            "COM",
-            msg.sender
-        );
-        
-        return contractAddress;
+        _registerContract(contractAddress, assetType, name, symbol, msg.sender);
     }
     
     /**
@@ -318,5 +200,21 @@ contract AssetTokenFactory is AccessControl, ReentrancyGuard {
         returns (uint256) 
     {
         return assetTypeContracts[assetType].length;
+    }
+    
+    /**
+     * @dev Predict contract address for CREATE2 deployment
+     */
+    function predictAddress(bytes32 salt, bytes32 bytecodeHash) 
+        external 
+        view 
+        returns (address) 
+    {
+        return address(uint160(uint256(keccak256(abi.encodePacked(
+            bytes1(0xff),
+            address(this),
+            salt,
+            bytecodeHash
+        )))));
     }
 }

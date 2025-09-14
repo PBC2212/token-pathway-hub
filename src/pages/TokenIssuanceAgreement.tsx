@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft } from 'lucide-react';
@@ -7,6 +8,19 @@ import CognitoFormEmbed from '@/components/CognitoFormEmbed';
 const TokenIssuanceAgreement = () => {
   const navigate = useNavigate();
 
+  // Load Cognito Forms iframe script
+  useEffect(() => {
+    const script = document.createElement('script');
+    script.src = 'https://www.cognitoforms.com/f/iframe.js';
+    script.async = true;
+    document.body.appendChild(script);
+
+    return () => {
+      if (document.body.contains(script)) {
+        document.body.removeChild(script);
+      }
+    };
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5">
@@ -25,6 +39,9 @@ const TokenIssuanceAgreement = () => {
         <Card>
           <CardHeader>
             <CardTitle className="text-2xl">Token Issuance Agreement</CardTitle>
+            <p className="text-muted-foreground">
+              Please complete the form below to proceed with your token issuance agreement.
+            </p>
           </CardHeader>
           <CardContent className="p-0">
             <CognitoFormEmbed

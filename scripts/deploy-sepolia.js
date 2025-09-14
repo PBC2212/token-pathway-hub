@@ -1,15 +1,16 @@
-const hre = require("hardhat");
-const fs = require("fs");
+import hre from "hardhat";
+import fs from "fs";
 
 async function main() {
   const [deployer] = await hre.ethers.getSigners();
+  const deployerAddress = await deployer.getAddress();
 
-  console.log("Deploying contracts to Sepolia with the account:", deployer.address);
-  console.log("Account balance:", (await deployer.getBalance()).toString());
+  console.log("Deploying contracts to Sepolia with the account:", deployerAddress);
+  console.log("Account balance:", (await hre.ethers.provider.getBalance(deployerAddress)).toString());
 
   const deploymentData = {
     network: "sepolia",
-    deployer: deployer.address,
+    deployer: deployerAddress,
     timestamp: new Date().toISOString(),
     contracts: {},
     gasUsed: {},
@@ -18,42 +19,49 @@ async function main() {
   // Deploy Asset Token Factory
   console.log("\n🏭 Deploying Asset Token Factory...");
   const AssetTokenFactory = await hre.ethers.getContractFactory("AssetTokenFactory");
-  const assetFactory = await AssetTokenFactory.deploy(deployer.address);
-  await assetFactory.deployed();
+  const assetFactory = await AssetTokenFactory.deploy(deployerAddress);
+  await assetFactory.waitForDeployment();
   
-  deploymentData.contracts.assetFactory = assetFactory.address;
-  deploymentData.gasUsed.assetFactory = (await assetFactory.deployTransaction.wait()).gasUsed.toString();
+  const assetFactoryAddress = await assetFactory.getAddress();
+  deploymentData.contracts.assetFactory = assetFactoryAddress;
   
-  console.log("✅ AssetTokenFactory deployed to:", assetFactory.address);
+  console.log("✅ AssetTokenFactory deployed to:", assetFactoryAddress);
 
   // Deploy Liquidity Pool Factory  
   console.log("\n💧 Deploying Liquidity Pool Factory...");
   const LiquidityPoolFactory = await hre.ethers.getContractFactory("LiquidityPoolFactory");
   const liquidityFactory = await LiquidityPoolFactory.deploy();
-  await liquidityFactory.deployed();
+  await liquidityFactory.waitForDeployment();
   
-  deploymentData.contracts.liquidityFactory = liquidityFactory.address;
-  deploymentData.gasUsed.liquidityFactory = (await liquidityFactory.deployTransaction.wait()).gasUsed.toString();
+  const liquidityFactoryAddress = await liquidityFactory.getAddress();
+  deploymentData.contracts.liquidityFactory = liquidityFactoryAddress;
   
-  console.log("✅ LiquidityPoolFactory deployed to:", liquidityFactory.address);
+  console.log("✅ LiquidityPoolFactory deployed to:", liquidityFactoryAddress);
 
   // Deploy Pledge Factory
   console.log("\n🏛️ Deploying Pledge Factory...");
   const PledgeFactory = await hre.ethers.getContractFactory("PledgeFactory");
   const pledgeFactory = await PledgeFactory.deploy();
-  await pledgeFactory.deployed();
+  await pledgeFactory.waitForDeployment();
   
-  deploymentData.contracts.pledgeFactory = pledgeFactory.address;
-  deploymentData.gasUsed.pledgeFactory = (await pledgeFactory.deployTransaction.wait()).gasUsed.toString();
+  const pledgeFactoryAddress = await pledgeFactory.getAddress();
+  deploymentData.contracts.pledgeFactory = pledgeFactoryAddress;
   
-  console.log("✅ PledgeFactory deployed to:", pledgeFactory.address);
+  console.log("✅ PledgeFactory deployed to:", pledgeFactoryAddress);
 
   // Deploy Asset Tokens via Factory
   console.log("\n🏠 Deploying Real Estate Token...");
-  const retTx = await assetFactory.deployRealEstateToken(deployer.address);
+  const retTx = await assetFactory.deployRealEstateToken(deployerAddress);
   const retReceipt = await retTx.wait();
-  const retEvent = retReceipt.events?.find(e => e.event === "ContractDeployed");
-  const realEstateToken = retEvent?.args?.contractAddress;
+  const retEvent = retReceipt.logs.find(log => {
+    try {
+      const parsed = assetFactory.interface.parseLog(log);
+      return parsed.name === "ContractDeployed";
+    } catch {
+      return false;
+    }
+  });
+  const realEstateToken = retEvent ? assetFactory.interface.parseLog(retEvent).args.contractAddress : null;
   
   deploymentData.contracts.realEstateToken = realEstateToken;
   deploymentData.gasUsed.realEstateToken = retReceipt.gasUsed.toString();
@@ -61,10 +69,17 @@ async function main() {
   console.log("✅ Real Estate Token deployed to:", realEstateToken);
 
   console.log("\n🥇 Deploying Gold Token...");
-  const gldTx = await assetFactory.deployGoldToken(deployer.address);
+  const gldTx = await assetFactory.deployGoldToken(deployerAddress);
   const gldReceipt = await gldTx.wait();
-  const gldEvent = gldReceipt.events?.find(e => e.event === "ContractDeployed");
-  const goldToken = gldEvent?.args?.contractAddress;
+  const gldEvent = gldReceipt.logs.find(log => {
+    try {
+      const parsed = assetFactory.interface.parseLog(log);
+      return parsed.name === "ContractDeployed";
+    } catch {
+      return false;
+    }
+  });
+  const goldToken = gldEvent ? assetFactory.interface.parseLog(gldEvent).args.contractAddress : null;
   
   deploymentData.contracts.goldToken = goldToken;
   deploymentData.gasUsed.goldToken = gldReceipt.gasUsed.toString();
@@ -72,10 +87,17 @@ async function main() {
   console.log("✅ Gold Token deployed to:", goldToken);
 
   console.log("\n🚗 Deploying Vehicle Token...");
-  const vetTx = await assetFactory.deployVehicleToken(deployer.address);
+  const vetTx = await assetFactory.deployVehicleToken(deployerAddress);
   const vetReceipt = await vetTx.wait();
-  const vetEvent = vetReceipt.events?.find(e => e.event === "ContractDeployed");
-  const vehicleToken = vetEvent?.args?.contractAddress;
+  const vetEvent = vetReceipt.logs.find(log => {
+    try {
+      const parsed = assetFactory.interface.parseLog(log);
+      return parsed.name === "ContractDeployed";
+    } catch {
+      return false;
+    }
+  });
+  const vehicleToken = vetEvent ? assetFactory.interface.parseLog(vetEvent).args.contractAddress : null;
   
   deploymentData.contracts.vehicleToken = vehicleToken;
   deploymentData.gasUsed.vehicleToken = vetReceipt.gasUsed.toString();
@@ -83,10 +105,17 @@ async function main() {
   console.log("✅ Vehicle Token deployed to:", vehicleToken);
 
   console.log("\n🎨 Deploying Art Token...");
-  const artTx = await assetFactory.deployArtToken(deployer.address);
+  const artTx = await assetFactory.deployArtToken(deployerAddress);
   const artReceipt = await artTx.wait();
-  const artEvent = artReceipt.events?.find(e => e.event === "ContractDeployed");
-  const artToken = artEvent?.args?.contractAddress;
+  const artEvent = artReceipt.logs.find(log => {
+    try {
+      const parsed = assetFactory.interface.parseLog(log);
+      return parsed.name === "ContractDeployed";
+    } catch {
+      return false;
+    }
+  });
+  const artToken = artEvent ? assetFactory.interface.parseLog(artEvent).args.contractAddress : null;
   
   deploymentData.contracts.artToken = artToken;
   deploymentData.gasUsed.artToken = artReceipt.gasUsed.toString();
@@ -94,10 +123,17 @@ async function main() {
   console.log("✅ Art Token deployed to:", artToken);
 
   console.log("\n🔧 Deploying Equipment Token...");
-  const eqtTx = await assetFactory.deployEquipmentToken(deployer.address);
+  const eqtTx = await assetFactory.deployEquipmentToken(deployerAddress);
   const eqtReceipt = await eqtTx.wait();
-  const eqtEvent = eqtReceipt.events?.find(e => e.event === "ContractDeployed");
-  const equipmentToken = eqtEvent?.args?.contractAddress;
+  const eqtEvent = eqtReceipt.logs.find(log => {
+    try {
+      const parsed = assetFactory.interface.parseLog(log);
+      return parsed.name === "ContractDeployed";
+    } catch {
+      return false;
+    }
+  });
+  const equipmentToken = eqtEvent ? assetFactory.interface.parseLog(eqtEvent).args.contractAddress : null;
   
   deploymentData.contracts.equipmentToken = equipmentToken;
   deploymentData.gasUsed.equipmentToken = eqtReceipt.gasUsed.toString();
@@ -105,10 +141,17 @@ async function main() {
   console.log("✅ Equipment Token deployed to:", equipmentToken);
 
   console.log("\n📦 Deploying Commodity Token...");
-  const comTx = await assetFactory.deployCommodityToken(deployer.address);
+  const comTx = await assetFactory.deployCommodityToken(deployerAddress);
   const comReceipt = await comTx.wait();
-  const comEvent = comReceipt.events?.find(e => e.event === "ContractDeployed");
-  const commodityToken = comEvent?.args?.contractAddress;
+  const comEvent = comReceipt.logs.find(log => {
+    try {
+      const parsed = assetFactory.interface.parseLog(log);
+      return parsed.name === "ContractDeployed";
+    } catch {
+      return false;
+    }
+  });
+  const commodityToken = comEvent ? assetFactory.interface.parseLog(comEvent).args.contractAddress : null;
   
   deploymentData.contracts.commodityToken = commodityToken;
   deploymentData.gasUsed.commodityToken = comReceipt.gasUsed.toString();
@@ -123,10 +166,21 @@ async function main() {
     "SPANFT"
   );
   const pledgeDeployReceipt = await pledgeDeployTx.wait();
-  const pledgeEvent = pledgeDeployReceipt.events?.find(e => e.event === "PledgeSystemDeployed");
+  const pledgeEvent = pledgeDeployReceipt.logs.find(log => {
+    try {
+      const parsed = pledgeFactory.interface.parseLog(log);
+      return parsed.name === "PledgeSystemDeployed";
+    } catch {
+      return false;
+    }
+  });
   
-  const pledgeEscrow = pledgeEvent?.args?.escrow;
-  const pledgeNFT = pledgeEvent?.args?.nft;
+  let pledgeEscrow, pledgeNFT;
+  if (pledgeEvent) {
+    const parsedEvent = pledgeFactory.interface.parseLog(pledgeEvent);
+    pledgeEscrow = parsedEvent.args.escrow;
+    pledgeNFT = parsedEvent.args.nft;
+  }
   
   deploymentData.contracts.pledgeEscrow = pledgeEscrow;
   deploymentData.contracts.pledgeNFT = pledgeNFT;
@@ -156,6 +210,11 @@ async function main() {
   
   console.log("✅ Asset token integration configured");
 
+  // Ensure deployments directory exists
+  if (!fs.existsSync('deployments')) {
+    fs.mkdirSync('deployments');
+  }
+
   // Save deployment data
   fs.writeFileSync(
     `deployments/sepolia-${Date.now()}.json`,
@@ -165,47 +224,54 @@ async function main() {
   // Create environment variables template
   const envTemplate = `
 # Sepolia Testnet Contract Addresses (Generated ${new Date().toISOString()})
-SEPOLIA_ASSET_FACTORY_ADDRESS=${assetFactory.address}
-SEPOLIA_LIQUIDITY_FACTORY_ADDRESS=${liquidityFactory.address}
-SEPOLIA_PLEDGE_FACTORY_ADDRESS=${pledgeFactory.address}
+SEPOLIA_ASSET_FACTORY_ADDRESS=${assetFactoryAddress}
+SEPOLIA_LIQUIDITY_FACTORY_ADDRESS=${liquidityFactoryAddress}
+SEPOLIA_PLEDGE_FACTORY_ADDRESS=${pledgeFactoryAddress}
 SEPOLIA_PLEDGE_ESCROW_ADDRESS=${pledgeEscrow}
 SEPOLIA_PLEDGE_NFT_ADDRESS=${pledgeNFT}
-SEPOLIA_REAL_ESTATE_TOKEN_ADDRESS=${realEstateToken}
-SEPOLIA_GOLD_TOKEN_ADDRESS=${goldToken}
-SEPOLIA_VEHICLE_TOKEN_ADDRESS=${vehicleToken}
-SEPOLIA_ART_TOKEN_ADDRESS=${artToken}
-SEPOLIA_EQUIPMENT_TOKEN_ADDRESS=${equipmentToken}
-SEPOLIA_COMMODITY_TOKEN_ADDRESS=${commodityToken}
+SEPOLIA_REAL_ESTATE_TOKEN_ADDRESS=${realEstateTokenAddress}
+SEPOLIA_GOLD_TOKEN_ADDRESS=${goldTokenAddress}
+SEPOLIA_VEHICLE_TOKEN_ADDRESS=${vehicleTokenAddress}
+SEPOLIA_ART_TOKEN_ADDRESS=${artTokenAddress}
+SEPOLIA_EQUIPMENT_TOKEN_ADDRESS=${equipmentTokenAddress}
+SEPOLIA_COMMODITY_TOKEN_ADDRESS=${commodityTokenAddress}
 `;
 
   fs.writeFileSync('.env.sepolia', envTemplate);
 
   console.log("\n🎉 Deployment Complete!");
   console.log("\n📋 Summary:");
-  console.log("├── Asset Factory:", assetFactory.address);
-  console.log("├── Liquidity Factory:", liquidityFactory.address);
-  console.log("├── Pledge Factory:", pledgeFactory.address);
+  console.log("├── Asset Factory:", assetFactoryAddress);
+  console.log("├── Liquidity Factory:", liquidityFactoryAddress);
+  console.log("├── Pledge Factory:", pledgeFactoryAddress);
   console.log("├── Pledge Escrow:", pledgeEscrow);
   console.log("├── Pledge NFT:", pledgeNFT);
-  console.log("├── Real Estate Token:", realEstateToken);
-  console.log("├── Gold Token:", goldToken);
-  console.log("├── Vehicle Token:", vehicleToken);
-  console.log("├── Art Token:", artToken);
-  console.log("├── Equipment Token:", equipmentToken);
-  console.log("└── Commodity Token:", commodityToken);
+  console.log("├── Real Estate Token:", realEstateTokenAddress);
+  console.log("├── Gold Token:", goldTokenAddress);
+  console.log("├── Vehicle Token:", vehicleTokenAddress);
+  console.log("├── Art Token:", artTokenAddress);
+  console.log("├── Equipment Token:", equipmentTokenAddress);
+  console.log("└── Commodity Token:", commodityTokenAddress);
   
   console.log("\n📁 Deployment data saved to deployments/");
-  console.log("📁 Environment variables saved to .env.sepolia");
+  console.log("📄 Environment variables saved to .env.sepolia");
   
-  console.log("\n🔍 Next Steps:");
+  console.log("\n📝 Next Steps:");
   console.log("1. Verify contracts on Etherscan");
   console.log("2. Update Supabase edge function environment variables");
   console.log("3. Test the deployment with sample transactions");
   
   console.log("\n🔗 Verify on Etherscan:");
-  console.log(`npx hardhat verify --network sepolia ${assetFactory.address} ${deployer.address}`);
-  console.log(`npx hardhat verify --network sepolia ${liquidityFactory.address}`);
-  console.log(`npx hardhat verify --network sepolia ${pledgeFactory.address}`);
+  console.log(`npx hardhat verify --network sepolia ${assetFactoryAddress} ${deployerAddress}`);
+  console.log(`npx hardhat verify --network sepolia ${liquidityFactoryAddress}`);
+  console.log(`npx hardhat verify --network sepolia ${pledgeNFTAddress}`);
+  console.log(`npx hardhat verify --network sepolia ${pledgeEscrowAddress} ${pledgeNFTAddress}`);
+  console.log(`npx hardhat verify --network sepolia ${realEstateTokenAddress} ${deployerAddress}`);
+  console.log(`npx hardhat verify --network sepolia ${goldTokenAddress} ${deployerAddress}`);
+  console.log(`npx hardhat verify --network sepolia ${vehicleTokenAddress} ${deployerAddress}`);
+  console.log(`npx hardhat verify --network sepolia ${artTokenAddress} ${deployerAddress}`);
+  console.log(`npx hardhat verify --network sepolia ${equipmentTokenAddress} ${deployerAddress}`);
+  console.log(`npx hardhat verify --network sepolia ${commodityTokenAddress} ${deployerAddress}`);
 }
 
 main()

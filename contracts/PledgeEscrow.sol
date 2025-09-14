@@ -2,11 +2,12 @@
 pragma solidity ^0.8.19;
 
 import "@openzeppelin/contracts/access/AccessControl.sol";
-import "@openzeppelin/contracts/utils/Pausable.sol";
-import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/security/Pausable.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import "./interfaces/IPledgeEscrow.sol";
+import "./interfaces/IAssetMetadata.sol";
 import "./PledgeNFT.sol";
 import "./BaseAssetToken.sol";
 
@@ -72,7 +73,7 @@ contract PledgeEscrow is IPledgeEscrow, AccessControl, Pausable, ReentrancyGuard
         AssetMetadata calldata metadata
     ) external nonReentrant whenNotPaused returns (uint256 pledgeId) {
         require(appraisedValue >= minAppraisalValue, "PledgeEscrow: value too low");
-        require(bytes(metadata.name).length > 0, "PledgeEscrow: invalid metadata");
+        require(bytes(metadata.description).length > 0, "PledgeEscrow: invalid metadata");
         require(metadata.documentHash != bytes32(0), "PledgeEscrow: invalid document hash");
 
         pledgeId = _pledgeIdCounter++;
@@ -83,7 +84,7 @@ contract PledgeEscrow is IPledgeEscrow, AccessControl, Pausable, ReentrancyGuard
             pledgeId,
             _assetTypeToString(assetType),
             appraisedValue,
-            metadata.appraisalDocument,
+            metadata.description,
             metadata.documentHash
         );
 
@@ -99,7 +100,7 @@ contract PledgeEscrow is IPledgeEscrow, AccessControl, Pausable, ReentrancyGuard
             createdAt: block.timestamp,
             approvedAt: 0,
             approvedBy: address(0),
-            metadataURI: metadata.appraisalDocument,
+            metadataURI: metadata.description,
             documentHash: metadata.documentHash
         });
 

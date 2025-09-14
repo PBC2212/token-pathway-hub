@@ -20,8 +20,9 @@ contract LPToken is ERC20, Ownable {
         string memory name,
         string memory symbol,
         address _pool
-    ) ERC20(name, symbol) Ownable(msg.sender) {
+    ) ERC20(name, symbol) Ownable() {
         pool = _pool;
+        _transferOwnership(_pool); // Transfer ownership to the pool contract
     }
     
     /**

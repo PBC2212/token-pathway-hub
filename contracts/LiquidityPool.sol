@@ -2,10 +2,11 @@
 pragma solidity ^0.8.19;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
-import "@openzeppelin/contracts/utils/Pausable.sol";
+import "@openzeppelin/contracts/security/Pausable.sol";
 import "./interfaces/ILiquidityPool.sol";
 import "./LPToken.sol";
 
@@ -329,10 +330,4 @@ contract LiquidityPool is ILiquidityPool, ReentrancyGuard, AccessControl, Pausab
     function min(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = x < y ? x : y;
     }
-}
-
-// Interface for getting token metadata
-interface IERC20Metadata {
-    function name() external view returns (string memory);
-    function symbol() external view returns (string memory);
 }

@@ -2,8 +2,9 @@
 pragma solidity ^0.8.19;
 
 import "@openzeppelin/contracts/access/AccessControl.sol";
-import "@openzeppelin/contracts/utils/Pausable.sol";
-import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/security/Pausable.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./LiquidityPool.sol";
 
 /**
@@ -103,7 +104,7 @@ contract LiquidityPoolFactory is AccessControl, Pausable, ReentrancyGuard {
             "LiquidityPoolFactory: insufficient initial liquidity");
         
         // Create the pool
-        pool = createPool(params.tokenA, params.tokenB, params.feeRate);
+        pool = this.createPool(params.tokenA, params.tokenB, params.feeRate);
         
         // Transfer tokens to this contract first
         IERC20(params.tokenA).transferFrom(msg.sender, address(this), params.initialLiquidityA);
