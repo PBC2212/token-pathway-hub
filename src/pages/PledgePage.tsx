@@ -7,12 +7,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { ArrowLeft, Coins, Shield, TrendingUp, FileCheck, Clock, AlertTriangle, CheckCircle, Upload } from 'lucide-react';
+import { ArrowLeft, Coins, Shield, TrendingUp, FileCheck, Clock, AlertTriangle, CheckCircle, Upload, Link, Database } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
-// Smart contract integration types
+// Enhanced smart contract integration types
 interface ContractConfig {
   pledgeFactoryAddress: string;
   pledgeEscrowAddress: string;
@@ -25,6 +25,17 @@ interface AssetTypeMapping {
   label: string;
   symbol: string;
   contractType: number;
+}
+
+interface PledgeResponse {
+  success: boolean;
+  message: string;
+  pledgeId: number;
+  blockchainPledgeId?: number;
+  blockchainTransaction?: string;
+  blockchainEnabled: boolean;
+  nftTokenId?: number;
+  data: any;
 }
 
 const PledgePage = () => {
@@ -48,7 +59,7 @@ const PledgePage = () => {
     documentHash: '',
   });
 
-  // Asset types with smart contract enum mapping
+  // Asset types with smart contract enum mapping - matches backend exactly
   const assetTypes: AssetTypeMapping[] = [
     { value: 'real_estate', label: 'Real Estate', symbol: 'RET', contractType: 0 },
     { value: 'gold', label: 'Gold', symbol: 'GLD', contractType: 1 },
@@ -66,12 +77,12 @@ const PledgePage = () => {
 
   const loadContractConfig = async () => {
     try {
-      // In production, these would come from your environment or database
+      // Use Vite's import.meta.env instead of process.env
       const config: ContractConfig = {
-        pledgeFactoryAddress: process.env.REACT_APP_PLEDGE_FACTORY_ADDRESS || '',
-        pledgeEscrowAddress: process.env.REACT_APP_PLEDGE_ESCROW_ADDRESS || '',
-        pledgeNFTAddress: process.env.REACT_APP_PLEDGE_NFT_ADDRESS || '',
-        fireblocksVaultAccountId: process.env.REACT_APP_FIREBLOCKS_VAULT_ID || ''
+        pledgeFactoryAddress: import.meta.env.VITE_PLEDGE_FACTORY_ADDRESS || '',
+        pledgeEscrowAddress: import.meta.env.VITE_PLEDGE_ESCROW_ADDRESS || '',
+        pledgeNFTAddress: import.meta.env.VITE_PLEDGE_NFT_ADDRESS || '',
+        fireblocksVaultAccountId: import.meta.env.VITE_FIREBLOCKS_VAULT_ID || ''
       };
       
       setContractConfig(config);
@@ -87,9 +98,16 @@ const PledgePage = () => {
 
   const checkFireblocksConnection = async () => {
     try {
-      // Check Fireblocks connection status
-      const { data } = await supabase.functions.invoke('check-fireblocks-status');
-      setFireblocksConnected(data?.connected || false);
+      // Check if Fireblocks is enabled via environment variable - use Vite's import.meta.env
+      const fireblocksEnabled = import.meta.env.VITE_FIREBLOCKS_ENABLED === 'true';
+      
+      if (fireblocksEnabled) {
+        // You could add an actual API call here to verify Fireblocks connection
+        const { data } = await supabase.functions.invoke('check-fireblocks-status');
+        setFireblocksConnected(data?.connected || false);
+      } else {
+        setFireblocksConnected(false);
+      }
     } catch (error) {
       console.error('Fireblocks connection check failed:', error);
       setFireblocksConnected(false);
@@ -263,12 +281,12 @@ const PledgePage = () => {
         }
       }
 
-      // Step 3: Create pledge
+      // Step 3: Create pledge with enhanced data structure
       updateProgress('Creating pledge record...', 50);
       const { data: pledgeResult, error: pledgeError } = await supabase.functions.invoke('create-pledge', {
         body: {
           user_address: formData.walletAddress,
-          asset_type: formData.assetType,
+          asset_type: formData.assetType, // Send frontend string value
           appraised_value: parseFloat(formData.appraisedValue),
           token_symbol: formData.tokenSymbol,
           contract_address: contractConfig?.pledgeEscrowAddress || '',
@@ -280,22 +298,36 @@ const PledgePage = () => {
         headers: {
           Authorization: `Bearer ${session.access_token}`
         }
-      });
+      }) as { data: PledgeResponse, error: any };
 
       if (pledgeError) {
         throw pledgeError;
       }
 
-      // Step 4: Success
+      // Step 4: Success handling with blockchain status
       updateProgress('Pledge created successfully!', 100);
 
-      // Show success message with details
-      const hasBlockchainTx = pledgeResult?.blockchainTransaction;
+      // Enhanced success message based on integration status
+      const result = pledgeResult;
+      let successTitle = 'Pledge Created Successfully!';
+      let successDescription = '';
+
+      if (result.blockchainEnabled && result.blockchainTransaction) {
+        successTitle = 'Blockchain Pledge Created!';
+        successDescription = `Pledge #${result.pledgeId} created with blockchain transaction ${result.blockchainTransaction}`;
+        if (result.nftTokenId) {
+          successDescription += ` and NFT #${result.nftTokenId}`;
+        }
+      } else if (result.blockchainEnabled && !result.blockchainTransaction) {
+        successTitle = 'Pledge Created (Blockchain Pending)';
+        successDescription = `Pledge #${result.pledgeId} created. Blockchain integration is pending - check back later for transaction details.`;
+      } else {
+        successDescription = `Pledge #${result.pledgeId} created and pending admin review. Blockchain features not enabled.`;
+      }
+
       toast({
-        title: 'Pledge Created Successfully!',
-        description: hasBlockchainTx 
-          ? `Pledge #${pledgeResult.pledgeId} created with blockchain transaction ${pledgeResult.blockchainTransaction}`
-          : `Pledge #${pledgeResult.pledgeId} created and pending admin review`,
+        title: successTitle,
+        description: successDescription,
       });
 
       // Clear form
@@ -355,20 +387,28 @@ const PledgePage = () => {
             Back to Dashboard
           </Button>
           
-          {/* Fireblocks Status */}
-          <Badge variant={fireblocksConnected ? "default" : "secondary"}>
-            {fireblocksConnected ? (
-              <>
+          {/* Enhanced Connection Status */}
+          <div className="flex gap-2">
+            <Badge variant={fireblocksConnected ? "default" : "secondary"}>
+              {fireblocksConnected ? (
+                <>
+                  <Link className="h-4 w-4 mr-1" />
+                  Blockchain Enabled
+                </>
+              ) : (
+                <>
+                  <Database className="h-4 w-4 mr-1" />
+                  Database Only
+                </>
+              )}
+            </Badge>
+            {contractConfig?.pledgeEscrowAddress && (
+              <Badge variant="outline">
                 <Shield className="h-4 w-4 mr-1" />
-                Fireblocks Connected
-              </>
-            ) : (
-              <>
-                <Clock className="h-4 w-4 mr-1" />
-                Database Only Mode
-              </>
+                Contract Ready
+              </Badge>
             )}
-          </Badge>
+          </div>
         </div>
 
         <div className="max-w-2xl mx-auto space-y-8">
@@ -380,18 +420,28 @@ const PledgePage = () => {
             <h1 className="text-3xl font-bold">Pledge Real-World Asset</h1>
             <p className="text-muted-foreground">
               Submit your real-world assets for tokenization. Assets require admin approval before tokens can be minted.
-              {fireblocksConnected && ' Blockchain features are enabled via Fireblocks custody.'}
+              {fireblocksConnected && ' Full blockchain integration is enabled with NFT minting.'}
+              {!fireblocksConnected && ' Currently operating in database-only mode.'}
             </p>
           </div>
 
-          {/* Info Cards */}
+          {/* Enhanced Info Cards */}
           <div className="grid md:grid-cols-3 gap-4">
             <Card>
               <CardContent className="p-4 text-center">
-                <Shield className="h-8 w-8 text-primary mx-auto mb-2" />
-                <h3 className="font-semibold">Secure Storage</h3>
+                {fireblocksConnected ? (
+                  <Shield className="h-8 w-8 text-primary mx-auto mb-2" />
+                ) : (
+                  <Database className="h-8 w-8 text-blue-600 mx-auto mb-2" />
+                )}
+                <h3 className="font-semibold">
+                  {fireblocksConnected ? 'Blockchain Custody' : 'Secure Database'}
+                </h3>
                 <p className="text-sm text-muted-foreground">
-                  {fireblocksConnected ? 'Fireblocks enterprise custody' : 'Secure database storage'}
+                  {fireblocksConnected 
+                    ? 'Fireblocks enterprise custody with smart contracts' 
+                    : 'Secure database storage with blockchain preparation'
+                  }
                 </p>
               </CardContent>
             </Card>
@@ -399,30 +449,49 @@ const PledgePage = () => {
               <CardContent className="p-4 text-center">
                 <FileCheck className="h-8 w-8 text-primary mx-auto mb-2" />
                 <h3 className="font-semibold">Asset Verification</h3>
-                <p className="text-sm text-muted-foreground">Professional appraisal required</p>
+                <p className="text-sm text-muted-foreground">
+                  Professional appraisal required with document hash verification
+                </p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-4 text-center">
                 <TrendingUp className="h-8 w-8 text-primary mx-auto mb-2" />
                 <h3 className="font-semibold">Token Liquidity</h3>
-                <p className="text-sm text-muted-foreground">Trade fractional ownership</p>
+                <p className="text-sm text-muted-foreground">
+                  {fireblocksConnected 
+                    ? 'Trade fractional ownership via blockchain tokens'
+                    : 'Prepare for future token liquidity'
+                  }
+                </p>
               </CardContent>
             </Card>
           </div>
 
-          {/* Contract Status */}
-          {contractConfig && fireblocksConnected && (
-            <Card className="bg-blue-50 dark:bg-blue-950">
+          {/* Enhanced Contract Status */}
+          {contractConfig && (
+            <Card className={fireblocksConnected ? "bg-blue-50 dark:bg-blue-950" : "bg-yellow-50 dark:bg-yellow-950"}>
               <CardContent className="p-4">
                 <h3 className="font-semibold mb-2 flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4 text-green-600" />
-                  Smart Contract Integration Active
+                  {fireblocksConnected ? (
+                    <>
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                      Smart Contract Integration Active
+                    </>
+                  ) : (
+                    <>
+                      <Clock className="h-4 w-4 text-yellow-600" />
+                      Smart Contract Configuration Ready
+                    </>
+                  )}
                 </h3>
                 <div className="space-y-1 text-sm">
                   <p><strong>Escrow:</strong> {contractConfig.pledgeEscrowAddress}</p>
                   <p><strong>NFT Contract:</strong> {contractConfig.pledgeNFTAddress}</p>
-                  <p><strong>Fireblocks Vault:</strong> {contractConfig.fireblocksVaultAccountId}</p>
+                  <p><strong>Status:</strong> {fireblocksConnected ? 'Active' : 'Standby (Database Only)'}</p>
+                  {contractConfig.fireblocksVaultAccountId && (
+                    <p><strong>Fireblocks Vault:</strong> {contractConfig.fireblocksVaultAccountId}</p>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -453,7 +522,8 @@ const PledgePage = () => {
                 <div className="space-y-2">
                   <Label htmlFor="walletAddress">
                     Wallet Address *
-                    {fireblocksConnected && <span className="text-xs text-muted-foreground ml-1">(Fireblocks managed)</span>}
+                    {fireblocksConnected && <span className="text-xs text-green-600 ml-1">(Fireblocks managed)</span>}
+                    {!fireblocksConnected && <span className="text-xs text-gray-500 ml-1">(Database storage)</span>}
                   </Label>
                   <Input
                     id="walletAddress"
@@ -473,7 +543,7 @@ const PledgePage = () => {
                     <p className="text-sm text-red-600">{getFieldError('walletAddress')}</p>
                   )}
                   <p className="text-sm text-muted-foreground">
-                    Wallet address where tokens will be minted
+                    Wallet address where tokens will be {fireblocksConnected ? 'minted' : 'assigned'}
                   </p>
                 </div>
 
@@ -490,7 +560,12 @@ const PledgePage = () => {
                     <SelectContent>
                       {assetTypes.map((asset) => (
                         <SelectItem key={asset.value} value={asset.value}>
-                          {asset.label} ({asset.symbol})
+                          <div className="flex items-center justify-between w-full">
+                            <span>{asset.label} ({asset.symbol})</span>
+                            <Badge variant="outline" className="ml-2">
+                              Contract: {asset.contractType}
+                            </Badge>
+                          </div>
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -588,6 +663,7 @@ const PledgePage = () => {
                   {formData.documentHash && (
                     <p className="text-xs text-green-600">
                       Document hash: {formData.documentHash.substring(0, 10)}... ✓
+                      {fireblocksConnected && ' (Will be stored on blockchain)'}
                     </p>
                   )}
                 </div>
@@ -617,17 +693,23 @@ const PledgePage = () => {
                   </p>
                 </div>
 
-                {/* Token Preview */}
+                {/* Enhanced Token Preview */}
                 {formData.appraisedValue && formData.assetType && (
                   <Card className="bg-primary/5">
                     <CardContent className="p-4">
-                      <h3 className="font-semibold mb-2">Preview</h3>
+                      <h3 className="font-semibold mb-2">Pledge Preview</h3>
                       <div className="space-y-1 text-sm">
                         <p><strong>Asset Value:</strong> ${parseFloat(formData.appraisedValue || '0').toLocaleString()}</p>
                         <p><strong>Token Symbol:</strong> {formData.tokenSymbol}</p>
                         <p><strong>Max LTV (70%):</strong> ${(parseFloat(formData.appraisedValue || '0') * 0.7).toLocaleString()}</p>
                         <p><strong>Status:</strong> Pending admin approval</p>
-                        {fireblocksConnected && <p><strong>Blockchain:</strong> NFT will be minted automatically</p>}
+                        <p><strong>Integration:</strong> {fireblocksConnected ? 'Blockchain + Database' : 'Database Only'}</p>
+                        {fireblocksConnected && (
+                          <>
+                            <p><strong>NFT:</strong> Will be minted automatically</p>
+                            <p><strong>Smart Contract:</strong> PledgeEscrow integration</p>
+                          </>
+                        )}
                       </div>
                     </CardContent>
                   </Card>
@@ -644,7 +726,14 @@ const PledgePage = () => {
                       <span>Creating Pledge...</span>
                     </div>
                   ) : (
-                    'Submit Asset Pledge'
+                    <>
+                      Submit Asset Pledge
+                      {fireblocksConnected && (
+                        <Badge variant="secondary" className="ml-2">
+                          Blockchain
+                        </Badge>
+                      )}
+                    </>
                   )}
                 </Button>
               </form>

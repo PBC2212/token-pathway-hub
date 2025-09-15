@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import VaultManager from '@/components/VaultManager';
-import { LogOut, Shield, FileText, Users, Building, Briefcase, User, Mail, Calendar, Vault, Settings, Coins, TrendingUp, DollarSign, Droplets, ExternalLink, Clock, CheckCircle, Lock, Key, Smartphone, AlertTriangle, Eye, EyeOff, History, Globe, Save } from 'lucide-react';
+import { LogOut, Shield, FileText, Users, Building, Briefcase, User, Mail, Calendar, Vault, Settings, Coins, TrendingUp, DollarSign, Droplets, ExternalLink, Clock, CheckCircle, Lock, Key, Smartphone, AlertTriangle, Eye, EyeOff, History, Globe, Save, Database, Link } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
@@ -25,11 +25,60 @@ interface Profile {
   created_at: string;
 }
 
+interface Pledge {
+  id: string;
+  pledge_id: number;
+  user_address: string;
+  asset_type: string;
+  asset_type_label?: string;
+  appraised_value: number;
+  formatted_appraised_value?: string;
+  token_amount: number;
+  formatted_token_amount?: string;
+  token_symbol: string;
+  status: string;
+  status_label?: string;
+  description: string;
+  blockchain_enabled?: boolean;
+  blockchain_status?: string;
+  nft_token_id?: number;
+  created_at: string;
+  days_since_created?: number;
+  ltv_ratio?: string;
+}
+
+interface PledgeData {
+  userId: string;
+  userEmail: string;
+  pledges: Pledge[];
+  summary: {
+    totalPledges: number;
+    totalValue: number;
+    totalTokens: number;
+    averageValue: number;
+    statusBreakdown: Record<string, number>;
+    assetTypeBreakdown: Record<string, any>;
+    blockchainStats: {
+      total_blockchain_enabled: number;
+      total_with_blockchain_id: number;
+      total_with_nft: number;
+      total_with_tx_hash: number;
+    };
+  };
+  metadata: {
+    lastUpdated: string;
+    dataVersion: string;
+    blockchainIntegrationAvailable: boolean;
+  };
+}
+
 const Dashboard = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [pledgeData, setPledgeData] = useState<PledgeData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [pledgesLoading, setPledgesLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   
   // Form states for profile editing
@@ -59,6 +108,7 @@ const Dashboard = () => {
   useEffect(() => {
     if (user) {
       fetchUserProfile();
+      fetchPledges();
     }
   }, [user]);
 
@@ -92,6 +142,45 @@ const Dashboard = () => {
       console.error('Profile fetch error:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchPledges = async () => {
+    try {
+      setPledgesLoading(true);
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        console.error('No session found');
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke('get-pledges', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`
+        }
+      });
+
+      if (error) {
+        console.error('Error fetching pledges:', error);
+        toast({
+          title: "Pledges Error",
+          description: "Could not load your pledge data.",
+          variant: "destructive",
+        });
+      } else {
+        console.log('Pledges fetched successfully:', data);
+        setPledgeData(data);
+      }
+    } catch (error: any) {
+      console.error('Pledge fetch error:', error);
+      toast({
+        title: "Pledges Error", 
+        description: "Failed to load pledge information.",
+        variant: "destructive",
+      });
+    } finally {
+      setPledgesLoading(false);
     }
   };
 
@@ -206,6 +295,23 @@ const Dashboard = () => {
     }
   };
 
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return <Badge variant="outline" className="text-yellow-600 border-yellow-300">Pending</Badge>;
+      case 'approved':
+        return <Badge className="bg-green-100 text-green-800 border-green-200">Approved</Badge>;
+      case 'rejected':
+        return <Badge className="bg-red-100 text-red-800 border-red-200">Rejected</Badge>;
+      case 'redeemed':
+        return <Badge className="bg-blue-100 text-blue-800 border-blue-200">Redeemed</Badge>;
+      case 'defaulted':
+        return <Badge className="bg-gray-100 text-gray-800 border-gray-200">Defaulted</Badge>;
+      default:
+        return <Badge variant="secondary">{status}</Badge>;
+    }
+  };
+
   const features = [
     {
       icon: Shield,
@@ -219,7 +325,7 @@ const Dashboard = () => {
     },
     {
       icon: Users,
-      title: "Multi-Party Support",
+      title: "Multi-Party Support", 
       description: "Coordinate seamlessly between all stakeholders in the process"
     },
     {
@@ -298,12 +404,12 @@ const Dashboard = () => {
     }
   ];
 
-  if (loading) {
+  if (loading || pledgesLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-muted-foreground">Loading your profile...</p>
+          <p className="mt-4 text-muted-foreground">Loading your dashboard...</p>
         </div>
       </div>
     );
@@ -323,6 +429,17 @@ const Dashboard = () => {
           </div>
           <div className="flex items-center gap-3">
             {profile?.kyc_status && getKYCStatusBadge(profile.kyc_status)}
+            {pledgeData?.metadata?.blockchainIntegrationAvailable ? (
+              <Badge variant="default">
+                <Link className="h-3 w-3 mr-1" />
+                Blockchain Ready
+              </Badge>
+            ) : (
+              <Badge variant="secondary">
+                <Database className="h-3 w-3 mr-1" />
+                Database Mode
+              </Badge>
+            )}
             <Button variant="outline" onClick={signOut} className="flex items-center gap-2">
               <LogOut className="h-4 w-4" />
               Sign Out
@@ -356,27 +473,112 @@ const Dashboard = () => {
                   completing documentation, and coordinating with all stakeholders in your tokenization journey.
                 </p>
                 
-                {/* Quick Stats */}
+                {/* Real Stats from Pledge Data */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
                   <div className="text-center p-4 bg-primary/5 rounded-lg">
-                    <div className="text-2xl font-bold text-primary">0</div>
+                    <div className="text-2xl font-bold text-primary">
+                      {pledgeData?.summary?.totalPledges || 0}
+                    </div>
                     <div className="text-sm text-muted-foreground">Assets Pledged</div>
                   </div>
                   <div className="text-center p-4 bg-green-50 rounded-lg">
-                    <div className="text-2xl font-bold text-green-600">0</div>
-                    <div className="text-sm text-muted-foreground">Tokens Minted</div>
+                    <div className="text-2xl font-bold text-green-600">
+                      ${pledgeData?.summary?.totalValue?.toLocaleString() || 0}
+                    </div>
+                    <div className="text-sm text-muted-foreground">Total Value</div>
                   </div>
                   <div className="text-center p-4 bg-blue-50 rounded-lg">
-                    <div className="text-2xl font-bold text-blue-600">0</div>
-                    <div className="text-sm text-muted-foreground">Active Vaults</div>
+                    <div className="text-2xl font-bold text-blue-600">
+                      {pledgeData?.summary?.blockchainStats?.total_blockchain_enabled || 0}
+                    </div>
+                    <div className="text-sm text-muted-foreground">Blockchain Enabled</div>
                   </div>
                   <div className="text-center p-4 bg-purple-50 rounded-lg">
-                    <div className="text-2xl font-bold text-purple-600">0</div>
-                    <div className="text-sm text-muted-foreground">Documents Signed</div>
+                    <div className="text-2xl font-bold text-purple-600">
+                      {pledgeData?.summary?.statusBreakdown?.approved || 0}
+                    </div>
+                    <div className="text-sm text-muted-foreground">Approved Pledges</div>
                   </div>
                 </div>
               </CardContent>
             </Card>
+
+            {/* Recent Pledges */}
+            {pledgeData?.pledges && pledgeData.pledges.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Coins className="h-5 w-5" />
+                    Your Recent Pledges
+                  </CardTitle>
+                  <CardDescription>
+                    Overview of your submitted asset pledges
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {pledgeData.pledges.slice(0, 3).map((pledge) => (
+                      <div key={pledge.id} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 rounded-lg bg-primary/10">
+                            <Building className="h-4 w-4 text-primary" />
+                          </div>
+                          <div>
+                            <h3 className="font-semibold">
+                              {pledge.asset_type_label || pledge.asset_type} - {pledge.token_symbol}
+                            </h3>
+                            <p className="text-sm text-muted-foreground">
+                              {pledge.formatted_appraised_value || `$${pledge.appraised_value?.toLocaleString()}`}
+                              {pledge.blockchain_enabled && ' • Blockchain Enabled'}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {getStatusBadge(pledge.status)}
+                          {pledge.days_since_created !== undefined && (
+                            <span className="text-xs text-muted-foreground">
+                              {pledge.days_since_created} days ago
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                    {pledgeData.pledges.length > 3 && (
+                      <Button 
+                        variant="outline" 
+                        className="w-full"
+                        onClick={() => navigate('/pledges')}
+                      >
+                        View All Pledges ({pledgeData.pledges.length})
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Empty State */}
+            {pledgeData?.pledges && pledgeData.pledges.length === 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Get Started with Asset Pledging</CardTitle>
+                  <CardDescription>
+                    You haven't pledged any assets yet. Start your tokenization journey today.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-center py-8">
+                    <Coins className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground mb-4">
+                      Pledge your real-world assets to begin the tokenization process.
+                    </p>
+                    <Button onClick={() => navigate('/pledge')}>
+                      Create Your First Pledge
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Features Grid */}
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
@@ -512,6 +714,88 @@ const Dashboard = () => {
                 </CardContent>
               </Card>
             </div>
+
+            {/* Show All Pledges */}
+            {pledgeData?.pledges && pledgeData.pledges.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="h-5 w-5" />
+                    All Your Pledges
+                  </CardTitle>
+                  <CardDescription>
+                    Complete list of your asset pledges and their current status
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {pledgeData.pledges.map((pledge) => (
+                      <div key={pledge.id} className="border rounded-lg p-4">
+                        <div className="flex items-start justify-between mb-3">
+                          <div>
+                            <h3 className="font-semibold text-lg">
+                              {pledge.asset_type_label || pledge.asset_type} #{pledge.pledge_id}
+                            </h3>
+                            <p className="text-sm text-muted-foreground">
+                              Token Symbol: {pledge.token_symbol}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {getStatusBadge(pledge.status)}
+                            {pledge.blockchain_enabled && (
+                              <Badge variant="outline">
+                                <Link className="h-3 w-3 mr-1" />
+                                Blockchain
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <div className="grid md:grid-cols-3 gap-4 text-sm">
+                          <div>
+                            <p className="font-medium">Appraised Value</p>
+                            <p className="text-muted-foreground">
+                              {pledge.formatted_appraised_value || `$${pledge.appraised_value?.toLocaleString()}`}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="font-medium">Token Amount</p>
+                            <p className="text-muted-foreground">
+                              {pledge.formatted_token_amount || pledge.token_amount?.toLocaleString() || 'Pending'}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="font-medium">Created</p>
+                            <p className="text-muted-foreground">
+                              {pledge.days_since_created !== undefined 
+                                ? `${pledge.days_since_created} days ago`
+                                : new Date(pledge.created_at).toLocaleDateString()
+                              }
+                            </p>
+                          </div>
+                        </div>
+
+                        {pledge.description && (
+                          <div className="mt-3 pt-3 border-t">
+                            <p className="text-sm text-muted-foreground">
+                              <strong>Description:</strong> {pledge.description}
+                            </p>
+                          </div>
+                        )}
+
+                        {pledge.ltv_ratio && parseFloat(pledge.ltv_ratio) > 0 && (
+                          <div className="mt-2">
+                            <p className="text-sm text-muted-foreground">
+                              <strong>LTV Ratio:</strong> {pledge.ltv_ratio}%
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Smart Contract Info */}
             <Card>
@@ -951,7 +1235,7 @@ const Dashboard = () => {
                     },
                     {
                       action: "Successful login",
-                      timestamp: "1 day ago",
+                      timestamp: "1 day ago", 
                       ip: "192.168.1.1",
                       location: "New York, NY"
                     },

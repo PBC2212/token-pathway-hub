@@ -77,12 +77,21 @@ const PledgePage = () => {
 
   const loadContractConfig = async () => {
     try {
+<<<<<<< HEAD
       // In production, these would come from your environment or database
       const config: ContractConfig = {
         pledgeFactoryAddress: process.env.REACT_APP_PLEDGE_FACTORY_ADDRESS || '',
         pledgeEscrowAddress: process.env.REACT_APP_PLEDGE_ESCROW_ADDRESS || '',
         pledgeNFTAddress: process.env.REACT_APP_PLEDGE_NFT_ADDRESS || '',
         fireblocksVaultAccountId: process.env.REACT_APP_FIREBLOCKS_VAULT_ID || ''
+=======
+      // Use Vite's import.meta.env instead of process.env
+      const config: ContractConfig = {
+        pledgeFactoryAddress: import.meta.env.VITE_PLEDGE_FACTORY_ADDRESS || '',
+        pledgeEscrowAddress: import.meta.env.VITE_PLEDGE_ESCROW_ADDRESS || '',
+        pledgeNFTAddress: import.meta.env.VITE_PLEDGE_NFT_ADDRESS || '',
+        fireblocksVaultAccountId: import.meta.env.VITE_FIREBLOCKS_VAULT_ID || ''
+>>>>>>> e931753 (Added Fireblocks SDK)
       };
       
       setContractConfig(config);
@@ -98,8 +107,13 @@ const PledgePage = () => {
 
   const checkFireblocksConnection = async () => {
     try {
+<<<<<<< HEAD
       // Check if Fireblocks is enabled via environment variable
       const fireblocksEnabled = process.env.REACT_APP_FIREBLOCKS_ENABLED === 'true';
+=======
+      // Check if Fireblocks is enabled via environment variable - use Vite's import.meta.env
+      const fireblocksEnabled = import.meta.env.VITE_FIREBLOCKS_ENABLED === 'true';
+>>>>>>> e931753 (Added Fireblocks SDK)
       
       if (fireblocksEnabled) {
         // You could add an actual API call here to verify Fireblocks connection
