@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import VaultManager from '@/components/VaultManager';
-import { LogOut, Shield, FileText, Users, Building, Briefcase, User, Mail, Calendar, Vault, Settings, Coins, TrendingUp, DollarSign, Droplets, ExternalLink, Clock, CheckCircle, Lock, Key, Smartphone, AlertTriangle, Eye, EyeOff, History, Globe, Save, Database, Link } from 'lucide-react';
+import { LogOut, Shield, FileText, Users, Building, Briefcase, User, Mail, Calendar, Vault, Settings, Coins, TrendingUp, DollarSign, Droplets, ExternalLink, Clock, CheckCircle, Lock, Key, Smartphone, AlertTriangle, Eye, EyeOff, History, Globe, Save, Database, Link, RefreshCw, XCircle } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
@@ -45,6 +45,7 @@ interface Pledge {
   created_at: string;
   days_since_created?: number;
   ltv_ratio?: string;
+  rejection_reason?: string;
 }
 
 interface PledgeData {
@@ -79,6 +80,50 @@ const Dashboard = () => {
   const [pledgeData, setPledgeData] = useState<PledgeData | null>(null);
   const [loading, setLoading] = useState(true);
   const [pledgesLoading, setPledgesLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [mintingPledgeId, setMintingPledgeId] = useState<string | null>(null);
+
+  const handleMintTokens = async (pledgeId: string) => {
+    try {
+      setMintingPledgeId(pledgeId);
+      
+      const { data: session } = await supabase.auth.getSession();
+      if (!session.session) {
+        toast({
+          title: 'Authentication Required',
+          description: 'Please sign in to mint tokens',
+          variant: 'destructive'
+        });
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke('mint-tokens', {
+        body: { pledgeId },
+        headers: {
+          Authorization: `Bearer ${session.session.access_token}`
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.success) {
+        toast({
+          title: 'Tokens Minted Successfully',
+          description: 'Your tokens have been minted',
+        });
+        await fetchPledges();
+      }
+    } catch (error) {
+      console.error('Error minting tokens:', error);
+      toast({
+        title: 'Minting Failed',
+        description: 'Failed to mint tokens. Please try again.',
+        variant: 'destructive'
+      });
+    } finally {
+      setMintingPledgeId(null);
+    }
+  };
   const [saving, setSaving] = useState(false);
   
   // Form states for profile editing
@@ -775,13 +820,59 @@ const Dashboard = () => {
                           </div>
                         </div>
 
-                        {pledge.description && (
-                          <div className="mt-3 pt-3 border-t">
-                            <p className="text-sm text-muted-foreground">
-                              <strong>Description:</strong> {pledge.description}
-                            </p>
-                          </div>
-                        )}
+                         {pledge.description && (
+                           <div className="mt-3 pt-3 border-t">
+                             <p className="text-sm text-muted-foreground">
+                               <strong>Description:</strong> {pledge.description}
+                             </p>
+                           </div>
+                         )}
+
+                         {/* Mint Token Button for Approved Pledges */}
+                         {pledge.status === 'approved' && (
+                           <div className="mt-3 p-4 bg-primary/5 border border-primary/20 rounded-lg">
+                             <div className="flex items-center justify-between">
+                               <div>
+                                 <h4 className="font-semibold text-primary">Ready for Token Minting</h4>
+                                 <p className="text-sm text-muted-foreground">
+                                   Your pledge has been approved. You can now mint your tokens.
+                                 </p>
+                               </div>
+                               <Button 
+                                 onClick={() => handleMintTokens(pledge.id)} 
+                                 className="ml-4"
+                                 disabled={mintingPledgeId === pledge.id}
+                               >
+                                 {mintingPledgeId === pledge.id ? (
+                                   <>
+                                     <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                                     Minting...
+                                   </>
+                                 ) : (
+                                   <>
+                                     <Coins className="h-4 w-4 mr-2" />
+                                     Mint Tokens
+                                   </>
+                                 )}
+                               </Button>
+                             </div>
+                           </div>
+                         )}
+
+                         {/* Rejection Reason Display */}
+                         {pledge.status === 'rejected' && pledge.rejection_reason && (
+                           <div className="mt-3 p-4 bg-destructive/5 border border-destructive/20 rounded-lg">
+                             <div className="flex items-start gap-3">
+                               <XCircle className="h-5 w-5 text-destructive mt-0.5" />
+                               <div>
+                                 <h4 className="font-semibold text-destructive">Pledge Rejected</h4>
+                                 <p className="text-sm text-muted-foreground mt-1">
+                                   {pledge.rejection_reason}
+                                 </p>
+                               </div>
+                             </div>
+                           </div>
+                         )}
 
                         {pledge.ltv_ratio && parseFloat(pledge.ltv_ratio) > 0 && (
                           <div className="mt-2">

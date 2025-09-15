@@ -6,9 +6,10 @@ const corsHeaders = {
 };
 
 interface AdminOperationRequest {
-  operation: 'get_pledges' | 'update_pledge' | 'get_audit_logs' | 'get_summary';
+  operation: 'get_pledges' | 'approve_pledge' | 'reject_pledge' | 'get_audit_logs' | 'get_summary';
   pledgeId?: string;
-  status?: string;
+  tokenAmount?: number;
+  rejectionReason?: string;
   adminNotes?: string;
   maskFinancialData?: boolean;
   limit?: number;
@@ -84,73 +85,69 @@ Deno.serve(async (req) => {
         };
         break;
 
-      case 'update_pledge':
-        if (!requestData.pledgeId || !requestData.status) {
-          throw new Error('Pledge ID and status are required');
+      case 'approve_pledge':
+        if (!requestData.pledgeId || !requestData.tokenAmount) {
+          throw new Error('Pledge ID and token amount are required');
         }
 
         // Use the secure update function
-        const { data: updateData, error: updateError } = await supabase
-          .rpc('admin_update_pledge_status', {
+        const { data: approveData, error: approveError } = await supabase
+          .rpc('admin_update_pledge_secure', {
             p_pledge_id: requestData.pledgeId,
-            p_new_status: requestData.status,
-            p_admin_notes: requestData.adminNotes
+            p_new_status: 'approved',
+            p_admin_notes: requestData.adminNotes || `Approved with ${requestData.tokenAmount} tokens`
           });
 
-        if (updateError) {
-          throw new Error(`Failed to update pledge: ${updateError.message}`);
+        if (approveError) {
+          throw new Error(`Failed to approve pledge: ${approveError.message}`);
         }
 
--- Add indexes for better performance (skip constraint as it exists)
-CREATE INDEX IF NOT EXISTS idx_pledges_status ON public.pledges(status);
-CREATE INDEX IF NOT EXISTS idx_pledges_user_status ON public.pledges(user_id, status);
-CREATE INDEX IF NOT EXISTS idx_pledges_created_at ON public.pledges(created_at DESC);
+        // Update token amount in pledge record
+        const { error: tokenUpdateError } = await supabase
+          .from('pledges')
+          .update({ 
+            token_amount: requestData.tokenAmount,
+            approved_at: new Date().toISOString(),
+            approved_by: user.id
+          })
+          .eq('id', requestData.pledgeId);
 
--- Create function to notify status changes
-CREATE OR REPLACE FUNCTION public.notify_pledge_status_change()
-RETURNS TRIGGER AS $$
-BEGIN
-  -- Notify on pledge status changes
-  IF TG_OP = 'UPDATE' AND OLD.status IS DISTINCT FROM NEW.status THEN
-    PERFORM pg_notify(
-      'pledge_status_changed',
-      json_build_object(
-        'pledge_id', NEW.id,
-        'user_id', NEW.user_id,
-        'old_status', OLD.status,
-        'new_status', NEW.status,
-        'updated_at', NEW.updated_at
-      )::text
-    );
-  END IF;
-  
-  -- Notify on new pledges
-  IF TG_OP = 'INSERT' THEN
-    PERFORM pg_notify(
-      'pledge_created',
-      json_build_object(
-        'pledge_id', NEW.id,
-        'user_id', NEW.user_id,
-        'status', NEW.status,
-        'asset_type', NEW.asset_type,
-        'appraised_value', NEW.appraised_value
-      )::text
-    );
-  END IF;
-  
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
+        if (tokenUpdateError) {
+          console.warn('Failed to update token amount:', tokenUpdateError);
+        }
 
--- Create trigger for real-time notifications
-DROP TRIGGER IF EXISTS trigger_pledge_status_change ON public.pledges;
-CREATE TRIGGER trigger_pledge_status_change
-  AFTER INSERT OR UPDATE ON public.pledges
-  FOR EACH ROW
-  EXECUTE FUNCTION public.notify_pledge_status_change();
+        result = { success: true, approved: true, tokenAmount: requestData.tokenAmount };
+        break;
 
--- Enable realtime for pledges table
-ALTER TABLE public.pledges REPLICA IDENTITY FULL;
+      case 'reject_pledge':
+        if (!requestData.pledgeId || !requestData.rejectionReason) {
+          throw new Error('Pledge ID and rejection reason are required');
+        }
+
+        // Use the secure update function
+        const { data: rejectData, error: rejectError } = await supabase
+          .rpc('admin_update_pledge_secure', {
+            p_pledge_id: requestData.pledgeId,
+            p_new_status: 'rejected',
+            p_admin_notes: `Rejected: ${requestData.rejectionReason}`
+          });
+
+        if (rejectError) {
+          throw new Error(`Failed to reject pledge: ${rejectError.message}`);
+        }
+
+        // Update rejection reason
+        const { error: rejectUpdateError } = await supabase
+          .from('pledges')
+          .update({ rejection_reason: requestData.rejectionReason })
+          .eq('id', requestData.pledgeId);
+
+        if (rejectUpdateError) {
+          console.warn('Failed to update rejection reason:', rejectUpdateError);
+        }
+
+        result = { success: true, rejected: true, reason: requestData.rejectionReason };
+        break;
 
       case 'get_audit_logs':
         // Get audit logs with RLS automatically applied
