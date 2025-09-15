@@ -454,17 +454,7 @@ export type Database = {
       }
     }
     Views: {
-      pledges_analytics_safe: {
-        Row: {
-          asset_type: string | null
-          avg_value_rounded: number | null
-          month_num: number | null
-          status: string | null
-          total_count: number | null
-          week_created: string | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
       admin_update_pledge_secure: {
@@ -517,6 +507,17 @@ export type Database = {
           updated_at: string
           user_email: string
           user_id: string
+        }[]
+      }
+      get_pledges_analytics_safe: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          asset_type: string
+          avg_value_rounded: number
+          month_num: number
+          status: string
+          total_count: number
+          week_created: string
         }[]
       }
       get_pledges_summary: {
