@@ -124,7 +124,6 @@ const Dashboard = () => {
       setMintingPledgeId(null);
     }
   };
-  const [saving, setSaving] = useState(false);
   
   // Form states for profile editing
   const [formData, setFormData] = useState({
