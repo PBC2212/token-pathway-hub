@@ -52,10 +52,15 @@ const AdminPledgeManager = () => {
   const fetchPledges = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('pledges')
-        .select('*')
-        .order('created_at', { ascending: false });
+      
+      // Use the secure admin operations edge function
+      const { data, error } = await supabase.functions.invoke('admin-operations', {
+        body: {
+          operation: 'get_pledges',
+          maskFinancialData: false, // Show full data for admin
+          limit: 100
+        }
+      });
 
       if (error) {
         console.error('Error fetching pledges:', error);
@@ -67,7 +72,7 @@ const AdminPledgeManager = () => {
         return;
       }
 
-      setPledges(data || []);
+      setPledges(data?.data?.pledges || []);
     } catch (error) {
       console.error('Error:', error);
       toast({
@@ -85,10 +90,15 @@ const AdminPledgeManager = () => {
 
     try {
       setLoading(true);
-      const { error } = await supabase.rpc('update_pledge_status', {
-        p_pledge_id: selectedPledge.id,
-        p_status: action === 'approve' ? 'approved' : 'rejected',
-        p_admin_notes: adminNotes || undefined
+      
+      // Use the secure admin operations edge function
+      const { data, error } = await supabase.functions.invoke('admin-operations', {
+        body: {
+          operation: 'update_pledge',
+          pledgeId: selectedPledge.id,
+          status: action === 'approve' ? 'approved' : 'rejected',
+          adminNotes: adminNotes || undefined
+        }
       });
 
       if (error) {
@@ -143,11 +153,6 @@ const AdminPledgeManager = () => {
             title: 'Mint initiated',
             description: `Minting ${selectedPledge.token_amount} ${tokenSymbol} tokens. Tx: ${mintData.transactionId}`
           });
-          // Update the approved pledge with the transaction id for traceability
-          await supabase
-            .from('pledges')
-            .update({ tx_hash: mintData.transactionId })
-            .eq('id', selectedPledge.id);
         }
       }
 

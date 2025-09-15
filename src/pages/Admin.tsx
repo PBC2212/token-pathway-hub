@@ -12,6 +12,7 @@ import { toast } from '@/hooks/use-toast';
 import { Users, FileText, UserCheck, Database, Plus, RefreshCw, Shield } from 'lucide-react';
 import VaultManager from '@/components/VaultManager';
 import AdminPledgeManager from '@/components/AdminPledgeManager';
+import AuditLogsViewer from '@/components/AuditLogsViewer';
 
 interface Profile {
   id: string;
@@ -255,7 +256,7 @@ export default function Admin() {
         </div>
 
         <Tabs defaultValue="pledges" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="pledges" className="flex items-center gap-2">
               <Shield className="h-4 w-4" />
               Pledges
@@ -271,6 +272,10 @@ export default function Admin() {
             <TabsTrigger value="kyc" className="flex items-center gap-2">
               <UserCheck className="h-4 w-4" />
               KYC Management
+            </TabsTrigger>
+            <TabsTrigger value="audit" className="flex items-center gap-2">
+              <Database className="h-4 w-4" />
+              Audit Logs
             </TabsTrigger>
             <TabsTrigger value="create" className="flex items-center gap-2">
               <Plus className="h-4 w-4" />
@@ -442,6 +447,10 @@ export default function Admin() {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="audit" className="space-y-4">
+            <AuditLogsViewer />
           </TabsContent>
 
           <TabsContent value="create" className="space-y-4">

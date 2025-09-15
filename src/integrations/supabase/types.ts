@@ -454,17 +454,6 @@ export type Database = {
       }
     }
     Views: {
-      pledges_admin_summary: {
-        Row: {
-          asset_type: string | null
-          avg_appraised_value: number | null
-          month_created: string | null
-          pledge_count: number | null
-          status: string | null
-          total_appraised_value: number | null
-        }
-        Relationships: []
-      }
       pledges_analytics_safe: {
         Row: {
           asset_type: string | null
@@ -528,6 +517,17 @@ export type Database = {
           updated_at: string
           user_email: string
           user_id: string
+        }[]
+      }
+      get_pledges_summary: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          asset_type: string
+          avg_appraised_value: number
+          month_created: string
+          pledge_count: number
+          status: string
+          total_appraised_value: number
         }[]
       }
       is_service_role_or_admin: {
