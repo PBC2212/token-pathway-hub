@@ -586,9 +586,9 @@ const Dashboard = () => {
             ))}
           </TabsContent>
 
-          <TabsContent value="profile" className="space-y-6">
+          <TabsContent value="profile" className="space-y-6 relative">
             {/* Profile Information */}
-            <Card>
+            <Card className="relative z-10">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <User className="h-5 w-5" />
@@ -602,22 +602,26 @@ const Dashboard = () => {
                 <div className="grid gap-6 md:grid-cols-2">
                   <div className="space-y-4">
                     <div>
-                      <Label htmlFor="full_name">Full Name</Label>
+                      <Label htmlFor="full_name" className="text-sm font-medium">Full Name</Label>
                       <Input
                         id="full_name"
                         value={formData.full_name}
-                        onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                        onChange={(e) => {
+                          console.log('Full name input changed:', e.target.value);
+                          setFormData({ ...formData, full_name: e.target.value });
+                        }}
                         placeholder="Enter your full name"
-                        className="mt-1"
+                        className="mt-1 relative z-10 pointer-events-auto"
+                        disabled={loading}
                       />
                     </div>
                     <div>
-                      <Label htmlFor="email">Email Address</Label>
+                      <Label htmlFor="email" className="text-sm font-medium">Email Address</Label>
                       <Input
                         id="email"
                         value={formData.email}
                         disabled
-                        className="mt-1 bg-muted/50"
+                        className="mt-1 bg-muted/50 relative z-10"
                       />
                       <p className="text-xs text-muted-foreground mt-1">
                         Email address cannot be changed. Contact support if needed.
@@ -653,9 +657,13 @@ const Dashboard = () => {
                     </p>
                   </div>
                   <Button 
-                    onClick={handleSaveProfile} 
-                    disabled={saving}
-                    className="flex items-center gap-2"
+                    onClick={() => {
+                      console.log('Save profile button clicked');
+                      handleSaveProfile();
+                    }} 
+                    disabled={saving || loading}
+                    className="flex items-center gap-2 relative z-10 pointer-events-auto"
+                    type="button"
                   >
                     {saving ? (
                       <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground"></div>
@@ -669,7 +677,7 @@ const Dashboard = () => {
             </Card>
 
             {/* Change Password */}
-            <Card>
+            <Card className="relative z-10">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Lock className="h-5 w-5" />
@@ -682,22 +690,30 @@ const Dashboard = () => {
               <CardContent className="space-y-4">
                 <div className="grid gap-4 md:grid-cols-1 max-w-md">
                   <div>
-                    <Label htmlFor="currentPassword">Current Password</Label>
+                    <Label htmlFor="currentPassword" className="text-sm font-medium">Current Password</Label>
                     <div className="relative">
                       <Input
                         id="currentPassword"
                         type={showCurrentPassword ? "text" : "password"}
                         value={passwordData.currentPassword}
-                        onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                        onChange={(e) => {
+                          console.log('Current password changed');
+                          setPasswordData({ ...passwordData, currentPassword: e.target.value });
+                        }}
                         placeholder="Enter current password"
-                        className="mt-1 pr-10"
+                        className="mt-1 pr-10 relative z-10 pointer-events-auto"
+                        disabled={loading}
                       />
                       <Button
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                        onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                        className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent z-20 pointer-events-auto"
+                        onClick={() => {
+                          console.log('Toggle current password visibility');
+                          setShowCurrentPassword(!showCurrentPassword);
+                        }}
+                        disabled={loading}
                       >
                         {showCurrentPassword ? (
                           <EyeOff className="h-4 w-4" />
@@ -709,22 +725,30 @@ const Dashboard = () => {
                   </div>
                   
                   <div>
-                    <Label htmlFor="newPassword">New Password</Label>
+                    <Label htmlFor="newPassword" className="text-sm font-medium">New Password</Label>
                     <div className="relative">
                       <Input
                         id="newPassword"
                         type={showNewPassword ? "text" : "password"}
                         value={passwordData.newPassword}
-                        onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                        onChange={(e) => {
+                          console.log('New password changed');
+                          setPasswordData({ ...passwordData, newPassword: e.target.value });
+                        }}
                         placeholder="Enter new password"
-                        className="mt-1 pr-10"
+                        className="mt-1 pr-10 relative z-10 pointer-events-auto"
+                        disabled={loading}
                       />
                       <Button
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                        onClick={() => setShowNewPassword(!showNewPassword)}
+                        className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent z-20 pointer-events-auto"
+                        onClick={() => {
+                          console.log('Toggle new password visibility');
+                          setShowNewPassword(!showNewPassword);
+                        }}
+                        disabled={loading}
                       >
                         {showNewPassword ? (
                           <EyeOff className="h-4 w-4" />
@@ -736,22 +760,30 @@ const Dashboard = () => {
                   </div>
                   
                   <div>
-                    <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                    <Label htmlFor="confirmPassword" className="text-sm font-medium">Confirm New Password</Label>
                     <div className="relative">
                       <Input
                         id="confirmPassword"
                         type={showConfirmPassword ? "text" : "password"}
                         value={passwordData.confirmPassword}
-                        onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                        onChange={(e) => {
+                          console.log('Confirm password changed');
+                          setPasswordData({ ...passwordData, confirmPassword: e.target.value });
+                        }}
                         placeholder="Confirm new password"
-                        className="mt-1 pr-10"
+                        className="mt-1 pr-10 relative z-10 pointer-events-auto"
+                        disabled={loading}
                       />
                       <Button
                         type="button"
                         variant="ghost"
                         size="sm"
-                        className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent z-20 pointer-events-auto"
+                        onClick={() => {
+                          console.log('Toggle confirm password visibility');
+                          setShowConfirmPassword(!showConfirmPassword);
+                        }}
+                        disabled={loading}
                       >
                         {showConfirmPassword ? (
                           <EyeOff className="h-4 w-4" />
@@ -773,9 +805,13 @@ const Dashboard = () => {
                     </p>
                   </div>
                   <Button 
-                    onClick={handlePasswordChange} 
-                    disabled={!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword}
-                    className="flex items-center gap-2"
+                    onClick={() => {
+                      console.log('Update password button clicked');
+                      handlePasswordChange();
+                    }} 
+                    disabled={!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword || loading}
+                    className="flex items-center gap-2 relative z-10 pointer-events-auto"
+                    type="button"
                   >
                     <Key className="h-4 w-4" />
                     Update Password
@@ -785,7 +821,7 @@ const Dashboard = () => {
             </Card>
 
             {/* Security Settings */}
-            <Card>
+            <Card className="relative z-10">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Shield className="h-5 w-5" />
@@ -817,7 +853,12 @@ const Dashboard = () => {
                     )}
                     <Switch
                       checked={securitySettings.twoFactorEnabled}
-                      onCheckedChange={(checked) => handleToggleSetting('twoFactorEnabled', checked)}
+                      onCheckedChange={(checked) => {
+                        console.log('2FA toggle clicked:', checked);
+                        handleToggleSetting('twoFactorEnabled', checked);
+                      }}
+                      disabled={loading}
+                      className="relative z-10 pointer-events-auto"
                     />
                   </div>
                 </div>
@@ -832,7 +873,12 @@ const Dashboard = () => {
                   </div>
                   <Switch
                     checked={securitySettings.emailNotifications}
-                    onCheckedChange={(checked) => handleToggleSetting('emailNotifications', checked)}
+                    onCheckedChange={(checked) => {
+                      console.log('Email notifications toggle clicked:', checked);
+                      handleToggleSetting('emailNotifications', checked);
+                    }}
+                    disabled={loading}
+                    className="relative z-10 pointer-events-auto"
                   />
                 </div>
 
@@ -846,7 +892,12 @@ const Dashboard = () => {
                   </div>
                   <Switch
                     checked={securitySettings.loginAlerts}
-                    onCheckedChange={(checked) => handleToggleSetting('loginAlerts', checked)}
+                    onCheckedChange={(checked) => {
+                      console.log('Login alerts toggle clicked:', checked);
+                      handleToggleSetting('loginAlerts', checked);
+                    }}
+                    disabled={loading}
+                    className="relative z-10 pointer-events-auto"
                   />
                 </div>
 
