@@ -1,14 +1,44 @@
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { Navigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Shield, FileCheck, Lock, Users, ArrowRight, CheckCircle } from 'lucide-react';
+import { Shield, FileCheck, Lock, Users, ArrowRight, CheckCircle, Settings } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
 
 const Index = () => {
   const { user } = useAuth();
+  const [userProfile, setUserProfile] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-  if (user) {
+  useEffect(() => {
+    checkUserProfile();
+  }, [user]);
+
+  const checkUserProfile = async () => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('user_id', user.id)
+        .single();
+      
+      setUserProfile(profile);
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Only redirect non-admin users to dashboard
+  if (user && !loading && userProfile?.role !== 'admin') {
     return <Navigate to="/dashboard" replace />;
   }
 
@@ -48,6 +78,37 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5">
+      {/* Admin Button - Top Left for Admin Users */}
+      {userProfile?.role === 'admin' && (
+        <div className="absolute top-4 left-4 z-50">
+          <Button 
+            asChild
+            variant="default"
+            className="shadow-lg"
+          >
+            <Link to="/admin" className="flex items-center gap-2">
+              <Settings className="h-4 w-4" />
+              Admin Panel
+            </Link>
+          </Button>
+        </div>
+      )}
+
+      {/* Dashboard Button - Top Right for Authenticated Users */}
+      {user && (
+        <div className="absolute top-4 right-4 z-50">
+          <Button 
+            asChild
+            variant="outline"
+            className="shadow-lg bg-background/80 backdrop-blur-sm"
+          >
+            <Link to="/dashboard">
+              Go to Dashboard
+            </Link>
+          </Button>
+        </div>
+      )}
+
       {/* Contact Numbers */}
       <div className="container mx-auto px-4 py-4">
         <div className="flex justify-end gap-6 text-sm text-muted-foreground">
@@ -78,15 +139,36 @@ const Index = () => {
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mt-10">
-              <Button asChild size="lg" className="text-lg px-8 py-6">
-                <Link to="/auth">
-                  Get Started
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </Link>
-              </Button>
-              <Button variant="outline" size="lg" className="text-lg px-8 py-6" asChild>
-                <Link to="/learn-more">Learn More</Link>
-              </Button>
+              {user ? (
+                <>
+                  <Button asChild size="lg" className="text-lg px-8 py-6">
+                    <Link to="/dashboard">
+                      Go to Dashboard
+                      <ArrowRight className="ml-2 h-5 w-5" />
+                    </Link>
+                  </Button>
+                  {userProfile?.role === 'admin' && (
+                    <Button asChild variant="outline" size="lg" className="text-lg px-8 py-6">
+                      <Link to="/admin" className="flex items-center gap-2">
+                        <Settings className="h-4 w-4" />
+                        Admin Panel
+                      </Link>
+                    </Button>
+                  )}
+                </>
+              ) : (
+                <>
+                  <Button asChild size="lg" className="text-lg px-8 py-6">
+                    <Link to="/auth">
+                      Get Started
+                      <ArrowRight className="ml-2 h-5 w-5" />
+                    </Link>
+                  </Button>
+                  <Button variant="outline" size="lg" className="text-lg px-8 py-6" asChild>
+                    <Link to="/learn-more">Learn More</Link>
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -191,8 +273,8 @@ const Index = () => {
               Join the future of asset ownership with our comprehensive tokenization platform
             </p>
             <Button asChild size="lg" className="text-lg px-8 py-6">
-              <Link to="/auth">
-                Access Portal
+              <Link to={user ? "/dashboard" : "/auth"}>
+                {user ? "Go to Dashboard" : "Access Portal"}
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
             </Button>
