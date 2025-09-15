@@ -514,11 +514,21 @@ const Dashboard = () => {
                     <div className="p-3 bg-muted/50 rounded-lg">
                       <p className="text-sm font-medium mb-2">Account Actions</p>
                       <div className="space-y-2">
-                        <Button variant="outline" size="sm" className="w-full">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="w-full"
+                          onClick={() => navigate('/account-settings')}
+                        >
                           <Settings className="h-4 w-4 mr-2" />
                           Account Settings
                         </Button>
-                        <Button variant="outline" size="sm" className="w-full">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="w-full"
+                          onClick={() => navigate('/security-settings')}
+                        >
                           <Shield className="h-4 w-4 mr-2" />
                           Security Settings
                         </Button>

@@ -9,6 +9,8 @@ import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import DeFiDashboard from "./pages/DeFiDashboard";
 import Admin from "./pages/Admin";
+import AccountSettings from "./pages/AccountSettings";
+import SecuritySettings from "./pages/SecuritySettings";
 import LearnMore from "./pages/LearnMore";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import AMLPolicy from "./pages/AMLPolicy";
@@ -41,6 +43,8 @@ const App = () => (
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/defi" element={<DeFiDashboard />} />
             <Route path="/admin" element={<Admin />} />
+            <Route path="/account-settings" element={<AccountSettings />} />
+            <Route path="/security-settings" element={<SecuritySettings />} />
             <Route path="/learn-more" element={<LearnMore />} />
             <Route path="/pledge" element={<PledgePage />} />
             <Route path="/mint" element={<MintPage />} />
