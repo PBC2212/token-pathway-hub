@@ -276,6 +276,10 @@ export type Database = {
           approved_at: string | null
           approved_by: string | null
           asset_type: string
+          asset_type_contract_id: number | null
+          blockchain_enabled: boolean | null
+          blockchain_pledge_id: number | null
+          blockchain_tx_hash: string | null
           contract_address: string | null
           created_at: string
           description: string | null
@@ -300,6 +304,10 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           asset_type: string
+          asset_type_contract_id?: number | null
+          blockchain_enabled?: boolean | null
+          blockchain_pledge_id?: number | null
+          blockchain_tx_hash?: string | null
           contract_address?: string | null
           created_at?: string
           description?: string | null
@@ -324,6 +332,10 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           asset_type?: string
+          asset_type_contract_id?: number | null
+          blockchain_enabled?: boolean | null
+          blockchain_pledge_id?: number | null
+          blockchain_tx_hash?: string | null
           contract_address?: string | null
           created_at?: string
           description?: string | null
@@ -509,12 +521,10 @@ export type Database = {
           appraised_value_display: string
           asset_type: string
           created_at: string
-          description_display: string
-          has_documents: boolean
           id: string
           status: string
           updated_at: string
-          user_address_display: string
+          user_email: string
           user_id: string
         }[]
       }

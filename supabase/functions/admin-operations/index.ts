@@ -101,8 +101,56 @@ Deno.serve(async (req) => {
           throw new Error(`Failed to update pledge: ${updateError.message}`);
         }
 
-        result = { success: true, updated: updateData };
-        break;
+-- Add indexes for better performance (skip constraint as it exists)
+CREATE INDEX IF NOT EXISTS idx_pledges_status ON public.pledges(status);
+CREATE INDEX IF NOT EXISTS idx_pledges_user_status ON public.pledges(user_id, status);
+CREATE INDEX IF NOT EXISTS idx_pledges_created_at ON public.pledges(created_at DESC);
+
+-- Create function to notify status changes
+CREATE OR REPLACE FUNCTION public.notify_pledge_status_change()
+RETURNS TRIGGER AS $$
+BEGIN
+  -- Notify on pledge status changes
+  IF TG_OP = 'UPDATE' AND OLD.status IS DISTINCT FROM NEW.status THEN
+    PERFORM pg_notify(
+      'pledge_status_changed',
+      json_build_object(
+        'pledge_id', NEW.id,
+        'user_id', NEW.user_id,
+        'old_status', OLD.status,
+        'new_status', NEW.status,
+        'updated_at', NEW.updated_at
+      )::text
+    );
+  END IF;
+  
+  -- Notify on new pledges
+  IF TG_OP = 'INSERT' THEN
+    PERFORM pg_notify(
+      'pledge_created',
+      json_build_object(
+        'pledge_id', NEW.id,
+        'user_id', NEW.user_id,
+        'status', NEW.status,
+        'asset_type', NEW.asset_type,
+        'appraised_value', NEW.appraised_value
+      )::text
+    );
+  END IF;
+  
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Create trigger for real-time notifications
+DROP TRIGGER IF EXISTS trigger_pledge_status_change ON public.pledges;
+CREATE TRIGGER trigger_pledge_status_change
+  AFTER INSERT OR UPDATE ON public.pledges
+  FOR EACH ROW
+  EXECUTE FUNCTION public.notify_pledge_status_change();
+
+-- Enable realtime for pledges table
+ALTER TABLE public.pledges REPLICA IDENTITY FULL;
 
       case 'get_audit_logs':
         // Get audit logs with RLS automatically applied
