@@ -75,7 +75,11 @@ const Admin = () => {
     );
   }
 
-  if (!user || profile?.role !== 'admin') {
+  if (!user) {
+    return <Navigate to="/auth" replace />;
+  }
+
+  if (profile?.role !== 'admin') {
     return <Navigate to="/dashboard" replace />;
   }
 
