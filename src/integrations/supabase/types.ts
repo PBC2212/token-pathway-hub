@@ -481,17 +481,40 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      get_pledge_sensitive_emergency: {
+        Args: {
+          p_emergency_justification: string
+          p_pledge_id: string
+          p_supervisor_email: string
+        }
+        Returns: {
+          appraised_value: number
+          description: string
+          document_hash: string
+          emergency_access_granted_at: string
+          id: string
+          user_address: string
+        }[]
+      }
       get_pledges_admin_secure: {
-        Args: { p_limit?: number; p_mask_financial_data?: boolean }
+        Args:
+          | {
+              p_access_justification: string
+              p_include_financial_data?: boolean
+              p_limit?: number
+            }
+          | { p_limit?: number; p_mask_financial_data?: boolean }
         Returns: {
           admin_notes: string
           appraised_value_display: string
           asset_type: string
           created_at: string
+          description_display: string
+          has_documents: boolean
           id: string
           status: string
           updated_at: string
-          user_email: string
+          user_address_display: string
           user_id: string
         }[]
       }
