@@ -50,6 +50,45 @@ export type Database = {
         }
         Relationships: []
       }
+      audit_logs: {
+        Row: {
+          accessed_data: Json | null
+          action: string
+          admin_role: string | null
+          created_at: string
+          id: string
+          ip_address: string | null
+          record_id: string | null
+          table_name: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          accessed_data?: Json | null
+          action: string
+          admin_role?: string | null
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          record_id?: string | null
+          table_name: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          accessed_data?: Json | null
+          action?: string
+          admin_role?: string | null
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          record_id?: string | null
+          table_name?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       blockchain_transactions: {
         Row: {
           completed_at: string | null
@@ -415,9 +454,27 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      pledges_admin_summary: {
+        Row: {
+          asset_type: string | null
+          avg_appraised_value: number | null
+          month_created: string | null
+          pledge_count: number | null
+          status: string | null
+          total_appraised_value: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
+      admin_update_pledge_status: {
+        Args: {
+          p_admin_notes?: string
+          p_new_status: string
+          p_pledge_id: string
+        }
+        Returns: boolean
+      }
       can_access_profile: {
         Args: { target_user_id: string }
         Returns: boolean
@@ -426,8 +483,31 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      get_pledges_admin_view: {
+        Args: { p_limit?: number; p_mask_financial_data?: boolean }
+        Returns: {
+          admin_notes: string
+          appraised_value_masked: string
+          asset_type: string
+          created_at: string
+          id: string
+          status: string
+          updated_at: string
+          user_email: string
+          user_id: string
+        }[]
+      }
       is_service_role_or_admin: {
         Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      log_admin_access: {
+        Args: {
+          p_accessed_data?: Json
+          p_action: string
+          p_record_id?: string
+          p_table_name: string
+        }
         Returns: boolean
       }
       setup_admin_user: {
