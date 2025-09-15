@@ -107,13 +107,8 @@ const PledgePage = () => {
 
   const checkFireblocksConnection = async () => {
     try {
-<<<<<<< HEAD
-      // Check if Fireblocks is enabled via environment variable
-      const fireblocksEnabled = process.env.REACT_APP_FIREBLOCKS_ENABLED === 'true';
-=======
-      // Check if Fireblocks is enabled via environment variable - use Vite's import.meta.env
-      const fireblocksEnabled = import.meta.env.VITE_FIREBLOCKS_ENABLED === 'true';
->>>>>>> e931753 (Added Fireblocks SDK)
+      // Check if Fireblocks is enabled - default to false for production
+      const fireblocksEnabled = false;
       
       if (fireblocksEnabled) {
         // You could add an actual API call here to verify Fireblocks connection
