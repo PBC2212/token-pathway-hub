@@ -251,7 +251,7 @@ export type Database = {
           tx_hash: string | null
           updated_at: string
           user_address: string
-          user_id: string | null
+          user_id: string
         }
         Insert: {
           admin_notes?: string | null
@@ -275,7 +275,7 @@ export type Database = {
           tx_hash?: string | null
           updated_at?: string
           user_address: string
-          user_id?: string | null
+          user_id: string
         }
         Update: {
           admin_notes?: string | null
@@ -299,7 +299,7 @@ export type Database = {
           tx_hash?: string | null
           updated_at?: string
           user_address?: string
-          user_id?: string | null
+          user_id?: string
         }
         Relationships: []
       }
