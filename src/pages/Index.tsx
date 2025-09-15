@@ -78,12 +78,26 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5">
-      {/* Admin Button - Top Left for Admin Users */}
+      {/* Admin Access Button - Top Center */}
+      <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50">
+        <Button 
+          asChild
+          variant="default"
+          className="shadow-lg bg-red-600 hover:bg-red-700 text-white"
+        >
+          <Link to="/auth" className="flex items-center gap-2">
+            <Shield className="h-4 w-4" />
+            ADMIN ACCESS
+          </Link>
+        </Button>
+      </div>
+
+      {/* Admin Panel Button - Top Left for Logged-in Admin Users */}
       {userProfile?.role === 'admin' && (
         <div className="absolute top-4 left-4 z-50">
           <Button 
             asChild
-            variant="default"
+            variant="outline"
             className="shadow-lg"
           >
             <Link to="/admin" className="flex items-center gap-2">
