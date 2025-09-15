@@ -16,10 +16,33 @@ async function main() {
     gasUsed: {},
   };
 
-  // Deploy PledgeFactory first
-  console.log("\n🏛️ Deploying Pledge Factory...");
+  // STEP 1: Deploy Implementation Contracts First
+  console.log("\n📦 Deploying Implementation Contracts...");
+  
+  // Deploy PledgeNFT Implementation
+  console.log("Deploying PledgeNFT implementation...");
+  const PledgeNFT = await hre.ethers.getContractFactory("PledgeNFT");
+  const nftImpl = await PledgeNFT.deploy();
+  await nftImpl.waitForDeployment();
+  
+  const nftImplAddress = await nftImpl.getAddress();
+  deploymentData.contracts.pledgeNFTImplementation = nftImplAddress;
+  console.log("✅ PledgeNFT implementation:", nftImplAddress);
+
+  // Deploy PledgeEscrow Implementation
+  console.log("Deploying PledgeEscrow implementation...");
+  const PledgeEscrow = await hre.ethers.getContractFactory("PledgeEscrow");
+  const escrowImpl = await PledgeEscrow.deploy();
+  await escrowImpl.waitForDeployment();
+  
+  const escrowImplAddress = await escrowImpl.getAddress();
+  deploymentData.contracts.pledgeEscrowImplementation = escrowImplAddress;
+  console.log("✅ PledgeEscrow implementation:", escrowImplAddress);
+
+  // STEP 2: Deploy Factory with Implementation Addresses
+  console.log("\n🏭 Deploying Pledge Factory...");
   const PledgeFactory = await hre.ethers.getContractFactory("PledgeFactory");
-  const pledgeFactory = await PledgeFactory.deploy();
+  const pledgeFactory = await PledgeFactory.deploy(nftImplAddress, escrowImplAddress);
   await pledgeFactory.waitForDeployment();
   
   const pledgeFactoryAddress = await pledgeFactory.getAddress();
@@ -27,7 +50,7 @@ async function main() {
   
   console.log("✅ PledgeFactory deployed to:", pledgeFactoryAddress);
 
-  // Deploy Pledge System via Factory
+  // STEP 3: Deploy Pledge System via Factory
   console.log("\n🏛️ Deploying Pledge System...");
   const pledgeDeployTx = await pledgeFactory.deployPledgeSystem(
     "Sepolia Asset Pledge System",
@@ -58,7 +81,7 @@ async function main() {
   console.log("✅ Pledge Escrow deployed to:", pledgeEscrow);
   console.log("✅ Pledge NFT deployed to:", pledgeNFT);
 
-  // Deploy individual Asset Token contracts
+  // STEP 4: Deploy Asset Token Contracts
   const assetTokens = [];
   const assetTypes = [
     { name: "RealEstateToken", symbol: "RET", type: 0 },
@@ -89,7 +112,7 @@ async function main() {
     console.log(`✅ ${asset.name} deployed to:`, tokenAddress);
   }
 
-  // Configure Asset Token Integration with Pledge System
+  // STEP 5: Configure Asset Token Integration
   console.log("\n⚙️ Configuring asset token integration...");
   const assetTypeIds = assetTypes.map(a => a.type);
 
@@ -102,13 +125,13 @@ async function main() {
   
   console.log("✅ Asset token integration configured");
 
-  // Set up additional roles if needed
+  // STEP 6: Set up roles
   console.log("\n🔐 Setting up roles...");
   
-  // Grant APPROVER_ROLE to deployer for testing
-  const PledgeEscrow = await hre.ethers.getContractFactory("PledgeEscrow");
-  const escrowContract = PledgeEscrow.attach(pledgeEscrow);
+  // Connect to the deployed escrow contract
+  const escrowContract = await hre.ethers.getContractAt("PledgeEscrow", pledgeEscrow);
   
+  // Grant roles to deployer for testing
   const APPROVER_ROLE = await escrowContract.APPROVER_ROLE();
   const MINTER_ROLE = await escrowContract.MINTER_ROLE();
   
@@ -117,12 +140,11 @@ async function main() {
   
   console.log("✅ Roles configured for deployer");
 
-  // Ensure deployments directory exists
+  // STEP 7: Save deployment data
   if (!fs.existsSync('deployments')) {
     fs.mkdirSync('deployments');
   }
 
-  // Save deployment data
   fs.writeFileSync(
     `deployments/sepolia-${Date.now()}.json`,
     JSON.stringify(deploymentData, null, 2)
@@ -131,22 +153,25 @@ async function main() {
   // Create environment variables template
   const envTemplate = `
 # Sepolia Testnet Contract Addresses (Generated ${new Date().toISOString()})
-REACT_APP_PLEDGE_FACTORY_ADDRESS=${pledgeFactoryAddress}
-REACT_APP_PLEDGE_ESCROW_ADDRESS=${pledgeEscrow}
-REACT_APP_PLEDGE_NFT_ADDRESS=${pledgeNFT}
+VITE_PLEDGE_FACTORY_ADDRESS=${pledgeFactoryAddress}
+VITE_PLEDGE_ESCROW_ADDRESS=${pledgeEscrow}
+VITE_PLEDGE_NFT_ADDRESS=${pledgeNFT}
+
+# Implementation Addresses
+VITE_PLEDGE_NFT_IMPLEMENTATION=${nftImplAddress}
+VITE_PLEDGE_ESCROW_IMPLEMENTATION=${escrowImplAddress}
 
 # Asset Token Addresses
-REACT_APP_RET_TOKEN_ADDRESS=${deploymentData.contracts.retToken}
-REACT_APP_GLD_TOKEN_ADDRESS=${deploymentData.contracts.gldToken}
-REACT_APP_VET_TOKEN_ADDRESS=${deploymentData.contracts.vetToken}
-REACT_APP_ART_TOKEN_ADDRESS=${deploymentData.contracts.artToken}
-REACT_APP_EQT_TOKEN_ADDRESS=${deploymentData.contracts.eqtToken}
-REACT_APP_COM_TOKEN_ADDRESS=${deploymentData.contracts.comToken}
+VITE_RET_TOKEN_ADDRESS=${deploymentData.contracts.retToken}
+VITE_GLD_TOKEN_ADDRESS=${deploymentData.contracts.gldToken}
+VITE_VET_TOKEN_ADDRESS=${deploymentData.contracts.vetToken}
+VITE_ART_TOKEN_ADDRESS=${deploymentData.contracts.artToken}
+VITE_EQT_TOKEN_ADDRESS=${deploymentData.contracts.eqtToken}
+VITE_COM_TOKEN_ADDRESS=${deploymentData.contracts.comToken}
 
-# Supabase Function Environment Variables
-REACT_APP_PLEDGE_FACTORY_ADDRESS=${pledgeFactoryAddress}
-REACT_APP_PLEDGE_ESCROW_ADDRESS=${pledgeEscrow}
-REACT_APP_PLEDGE_NFT_ADDRESS=${pledgeNFT}
+# Network Configuration
+VITE_NETWORK=sepolia
+VITE_CHAIN_ID=11155111
 `;
 
   fs.writeFileSync('.env.sepolia', envTemplate);
@@ -156,6 +181,8 @@ REACT_APP_PLEDGE_NFT_ADDRESS=${pledgeNFT}
   console.log("├── Pledge Factory:", pledgeFactoryAddress);
   console.log("├── Pledge Escrow:", pledgeEscrow);
   console.log("├── Pledge NFT:", pledgeNFT);
+  console.log("├── NFT Implementation:", nftImplAddress);
+  console.log("├── Escrow Implementation:", escrowImplAddress);
   console.log("├── Real Estate Token:", deploymentData.contracts.retToken);
   console.log("├── Gold Token:", deploymentData.contracts.gldToken);
   console.log("├── Vehicle Token:", deploymentData.contracts.vetToken);
@@ -166,26 +193,14 @@ REACT_APP_PLEDGE_NFT_ADDRESS=${pledgeNFT}
   console.log("\n📁 Deployment data saved to deployments/");
   console.log("📄 Environment variables saved to .env.sepolia");
   
-  console.log("\n📝 Next Steps:");
-  console.log("1. Update your React app's environment variables");
-  console.log("2. Update Supabase edge function environment variables");
-  console.log("3. Verify contracts on Etherscan");
-  console.log("4. Test the deployment with sample transactions");
-  
   console.log("\n🔗 Verify on Etherscan:");
-  console.log(`npx hardhat verify --network sepolia ${pledgeFactoryAddress}`);
-  console.log(`npx hardhat verify --network sepolia ${pledgeEscrow} ${pledgeNFT}`);
-  console.log(`npx hardhat verify --network sepolia ${pledgeNFT} "Sepolia Pledged Assets NFT" "SPANFT"`);
+  console.log(`npx hardhat verify --network sepolia ${nftImplAddress}`);
+  console.log(`npx hardhat verify --network sepolia ${escrowImplAddress}`);
+  console.log(`npx hardhat verify --network sepolia ${pledgeFactoryAddress} ${nftImplAddress} ${escrowImplAddress}`);
   
   assetTypes.forEach((asset, i) => {
     console.log(`npx hardhat verify --network sepolia ${assetTokens[i]} "${asset.name}" "${asset.symbol}" ${pledgeEscrow}`);
   });
-
-  console.log("\n⚠️  Important: Update your Supabase edge functions with these addresses:");
-  console.log("Set these as secrets in Supabase:");
-  console.log(`PLEDGE_ESCROW_ADDRESS=${pledgeEscrow}`);
-  console.log(`PLEDGE_NFT_ADDRESS=${pledgeNFT}`);
-  console.log(`PLEDGE_FACTORY_ADDRESS=${pledgeFactoryAddress}`);
 }
 
 main()

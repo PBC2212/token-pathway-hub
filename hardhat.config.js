@@ -1,11 +1,10 @@
 import "@nomicfoundation/hardhat-ethers";
 import "@openzeppelin/hardhat-upgrades";
-import { config as dotenvConfig } from "dotenv";
+import "hardhat-contract-sizer";
+import dotenv from "dotenv";
 
-// Load environment variables
-dotenvConfig();
+dotenv.config();
 
-/** @type import('hardhat/config').HardhatUserConfig */
 export default {
   solidity: {
     version: "0.8.20",
@@ -14,7 +13,7 @@ export default {
         enabled: true,
         runs: 200,
       },
-      viaIR: true, // Enable Intermediate Representation compilation
+      viaIR: true, // Enabled to fix stack too deep error
     },
   },
   networks: {
@@ -25,16 +24,12 @@ export default {
       },
     },
     sepolia: {
-      url: process.env.SEPOLIA_RPC_URL || "https://sepolia.infura.io/v3/your-api-key",
+      url: process.env.SEPOLIA_RPC_URL || "https://sepolia.infura.io/v3/YOUR_INFURA_API_KEY",
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
-      gasPrice: 20000000000, // 20 gwei
-      gas: 8000000,
     },
     ethereum: {
-      url: process.env.ETHEREUM_RPC_URL || "https://mainnet.infura.io/v3/your-api-key",
+      url: process.env.ETHEREUM_RPC_URL || "https://mainnet.infura.io/v3/YOUR_INFURA_API_KEY",
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
-      gasPrice: 20000000000,
-      gas: 8000000,
     },
   },
   etherscan: {
@@ -54,5 +49,11 @@ export default {
   },
   mocha: {
     timeout: 40000,
+  },
+  contractSizer: {
+    runOnCompile: true,
+    only: ["PledgeFactory"], // Replace with your contract names to focus sizing on
+    alphaSort: true,
+    disambiguatePaths: false,
   },
 };

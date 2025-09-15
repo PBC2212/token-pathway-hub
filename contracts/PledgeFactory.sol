@@ -1,20 +1,26 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.19;
 
+import "@openzeppelin/contracts/proxy/Clones.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/security/Pausable.sol";
-import "./PledgeEscrow.sol";
-import "./PledgeNFT.sol";
+import "../interfaces/IPledgeNFT.sol";
+import "../interfaces/IPledgeEscrow.sol";
 
 /**
  * @title PledgeFactory
- * @dev Factory contract for deploying pledge escrow systems
+ * @dev Factory contract that deploys pledge systems using minimal proxies
  */
 contract PledgeFactory is AccessControl, Pausable {
-    
+    using Clones for address;
+
     // Roles
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
     bytes32 public constant DEPLOYER_ROLE = keccak256("DEPLOYER_ROLE");
+
+    // Implementation contracts
+    address public immutable pledgeNFTImplementation;
+    address public immutable pledgeEscrowImplementation;
 
     // Events
     event PledgeSystemDeployed(
@@ -29,12 +35,14 @@ contract PledgeFactory is AccessControl, Pausable {
         bool isActive
     );
 
-    // State variables
+    // State
     address[] public allPledgeSystems;
     mapping(address => bool) public isValidPledgeSystem;
-    mapping(address => bool) public pledgeSystemStatus; // true = active
-    mapping(address => address) public escrowToNFT; // escrow => nft contract
+    mapping(address => bool) public pledgeSystemStatus;
+    mapping(address => address) public escrowToNFT;
     mapping(address => string) public systemNames;
+    mapping(address => uint256) public systemDeployedAt;
+    mapping(address => address) public systemDeployer;
 
     struct PledgeSystemInfo {
         address escrowContract;
@@ -45,203 +53,148 @@ contract PledgeFactory is AccessControl, Pausable {
         address deployer;
     }
 
-    constructor() {
+    constructor(address _pledgeNFTImpl, address _pledgeEscrowImpl) {
+        require(_pledgeNFTImpl != address(0), "PledgeFactory: invalid NFT impl");
+        require(_pledgeEscrowImpl != address(0), "PledgeFactory: invalid Escrow impl");
+
+        pledgeNFTImplementation = _pledgeNFTImpl;
+        pledgeEscrowImplementation = _pledgeEscrowImpl;
+
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(ADMIN_ROLE, msg.sender);
         _grantRole(DEPLOYER_ROLE, msg.sender);
     }
 
     /**
-     * @dev Deploy a new pledge system (NFT + Escrow)
+     * @dev Deploy new pledge system using minimal proxies
      */
     function deployPledgeSystem(
         string memory name,
         string memory nftName,
         string memory nftSymbol
     ) external onlyRole(DEPLOYER_ROLE) whenNotPaused returns (address escrow, address nft) {
-        require(bytes(name).length > 0, "PledgeFactory: invalid name");
-        require(bytes(nftName).length > 0, "PledgeFactory: invalid NFT name");
-        require(bytes(nftSymbol).length > 0, "PledgeFactory: invalid NFT symbol");
+        require(bytes(name).length > 0, "Invalid system name");
+        require(bytes(nftName).length > 0, "Invalid NFT name");
+        require(bytes(nftSymbol).length > 0, "Invalid NFT symbol");
 
-        // Deploy NFT contract
-        PledgeNFT pledgeNFT = new PledgeNFT(nftName, nftSymbol);
-        nft = address(pledgeNFT);
+        nft = pledgeNFTImplementation.clone();
+        escrow = pledgeEscrowImplementation.clone();
 
-        // Deploy Escrow contract
-        PledgeEscrow pledgeEscrow = new PledgeEscrow(nft);
-        escrow = address(pledgeEscrow);
+        IPledgeNFT(nft).initialize(nftName, nftSymbol, escrow);
+        IPledgeEscrow(escrow).initialize(nft);
 
-        // Grant escrow role to the escrow contract
-        pledgeNFT.grantRole(pledgeNFT.ESCROW_ROLE(), escrow);
+        IPledgeNFT(nft).grantRole(keccak256("ADMIN_ROLE"), msg.sender);
+        IPledgeEscrow(escrow).grantRole(keccak256("ADMIN_ROLE"), msg.sender);
+        IPledgeEscrow(escrow).grantRole(keccak256("APPROVER_ROLE"), msg.sender);
+        IPledgeEscrow(escrow).grantRole(keccak256("MINTER_ROLE"), msg.sender);
 
-        // Transfer ownership to factory admin
-        pledgeNFT.grantRole(pledgeNFT.ADMIN_ROLE(), msg.sender);
-        pledgeEscrow.grantRole(pledgeEscrow.ADMIN_ROLE(), msg.sender);
-
-        // Store system info
         allPledgeSystems.push(escrow);
         isValidPledgeSystem[escrow] = true;
-        pledgeSystemStatus[escrow] = true; // Active by default
+        pledgeSystemStatus[escrow] = true;
         escrowToNFT[escrow] = nft;
         systemNames[escrow] = name;
+        systemDeployedAt[escrow] = block.timestamp;
+        systemDeployer[escrow] = msg.sender;
 
         emit PledgeSystemDeployed(escrow, nft, msg.sender, name);
     }
 
     /**
-     * @dev Configure asset token contracts for a pledge system
+     * @dev Configure asset token contracts for escrow
      */
     function configureAssetTokens(
         address escrowContract,
         address[] calldata tokenContracts,
         uint8[] calldata assetTypes
     ) external onlyRole(ADMIN_ROLE) {
-        require(isValidPledgeSystem[escrowContract], "PledgeFactory: invalid escrow");
-        require(tokenContracts.length == assetTypes.length, "PledgeFactory: length mismatch");
+        require(isValidPledgeSystem[escrowContract], "Invalid escrow");
+        require(tokenContracts.length == assetTypes.length, "Length mismatch");
 
-        PledgeEscrow escrow = PledgeEscrow(escrowContract);
-        
         for (uint256 i = 0; i < tokenContracts.length; i++) {
-            require(tokenContracts[i] != address(0), "PledgeFactory: invalid token contract");
-            require(assetTypes[i] <= 5, "PledgeFactory: invalid asset type"); // 0-5 for enum values
-            
-            escrow.setAssetTokenContract(
-                IPledgeEscrow.AssetType(assetTypes[i]),
+            require(tokenContracts[i] != address(0), "Invalid token");
+            require(assetTypes[i] <= 5, "Invalid asset type");
+
+            IPledgeEscrow(escrowContract).setAssetTokenContract(
+                assetTypes[i],
                 tokenContracts[i]
             );
         }
     }
 
     /**
-     * @dev Set pledge system status (active/inactive)
+     * @dev Toggle system status (active/inactive)
      */
-    function setPledgeSystemStatus(
-        address escrowContract,
-        bool isActive
-    ) external onlyRole(ADMIN_ROLE) {
-        require(isValidPledgeSystem[escrowContract], "PledgeFactory: invalid escrow");
+    function setPledgeSystemStatus(address escrowContract, bool isActive) external onlyRole(ADMIN_ROLE) {
+        require(isValidPledgeSystem[escrowContract], "Invalid escrow");
 
         pledgeSystemStatus[escrowContract] = isActive;
 
-        // Pause/unpause the contracts
-        PledgeEscrow escrow = PledgeEscrow(escrowContract);
-        PledgeNFT nft = PledgeNFT(escrowToNFT[escrowContract]);
-
         if (isActive) {
-            escrow.unpause();
-            nft.unpause();
+            IPledgeEscrow(escrowContract).unpause();
+            IPledgeNFT(escrowToNFT[escrowContract]).unpause();
         } else {
-            escrow.pause();
-            nft.pause();
+            IPledgeEscrow(escrowContract).pause();
+            IPledgeNFT(escrowToNFT[escrowContract]).pause();
         }
 
         emit PledgeSystemStatusChanged(escrowContract, isActive);
     }
 
     /**
-     * @dev Emergency pause a pledge system
+     * @dev Get full system info for a deployed escrow
      */
-    function emergencyPausePledgeSystem(
-        address escrowContract
-    ) external onlyRole(ADMIN_ROLE) {
-        require(isValidPledgeSystem[escrowContract], "PledgeFactory: invalid escrow");
-
-        PledgeEscrow(escrowContract).pause();
-        PledgeNFT(escrowToNFT[escrowContract]).pause();
-        
-        pledgeSystemStatus[escrowContract] = false;
-        emit PledgeSystemStatusChanged(escrowContract, false);
-    }
-
-    /**
-     * @dev Get all pledge systems
-     */
-    function getAllPledgeSystems() external view returns (address[] memory) {
-        return allPledgeSystems;
-    }
-
-    /**
-     * @dev Get active pledge systems
-     */
-    function getActivePledgeSystems() external view returns (address[] memory activeSystems) {
-        uint256 activeCount = 0;
-        
-        // Count active systems
-        for (uint256 i = 0; i < allPledgeSystems.length; i++) {
-            if (pledgeSystemStatus[allPledgeSystems[i]]) {
-                activeCount++;
-            }
-        }
-        
-        // Create array of active systems
-        activeSystems = new address[](activeCount);
-        uint256 index = 0;
-        
-        for (uint256 i = 0; i < allPledgeSystems.length; i++) {
-            if (pledgeSystemStatus[allPledgeSystems[i]]) {
-                activeSystems[index] = allPledgeSystems[i];
-                index++;
-            }
-        }
-    }
-
-    /**
-     * @dev Get pledge system information
-     */
-    function getPledgeSystemInfo(
-        address escrowContract
-    ) external view returns (PledgeSystemInfo memory) {
-        require(isValidPledgeSystem[escrowContract], "PledgeFactory: invalid escrow");
+    function getPledgeSystemInfo(address escrowContract) external view returns (PledgeSystemInfo memory) {
+        require(isValidPledgeSystem[escrowContract], "Invalid escrow");
 
         return PledgeSystemInfo({
             escrowContract: escrowContract,
             nftContract: escrowToNFT[escrowContract],
             name: systemNames[escrowContract],
             isActive: pledgeSystemStatus[escrowContract],
-            deployedAt: block.timestamp, // This should be stored during deployment
-            deployer: msg.sender // This should be stored during deployment
+            deployedAt: systemDeployedAt[escrowContract],
+            deployer: systemDeployer[escrowContract]
         });
     }
 
     /**
-     * @dev Get NFT contract for escrow
+     * @dev List all pledge systems
      */
-    function getNFTContract(address escrowContract) external view returns (address) {
-        return escrowToNFT[escrowContract];
+    function getAllPledgeSystems() external view returns (address[] memory) {
+        return allPledgeSystems;
     }
 
     /**
-     * @dev Get total number of pledge systems
+     * @dev Total systems deployed
      */
     function totalPledgeSystems() external view returns (uint256) {
         return allPledgeSystems.length;
     }
 
     /**
-     * @dev Admin functions
+     * @dev Pause the factory
      */
     function pause() external onlyRole(ADMIN_ROLE) {
         _pause();
     }
 
+    /**
+     * @dev Unpause the factory
+     */
     function unpause() external onlyRole(ADMIN_ROLE) {
         _unpause();
     }
 
     /**
-     * @dev Grant roles to external addresses
+     * @dev Grant roles in factory
      */
-    function grantFactoryRole(
-        bytes32 role,
-        address account
-    ) external onlyRole(ADMIN_ROLE) {
+    function grantFactoryRole(bytes32 role, address account) external onlyRole(ADMIN_ROLE) {
         _grantRole(role, account);
     }
 
-    function revokeFactoryRole(
-        bytes32 role,
-        address account
-    ) external onlyRole(ADMIN_ROLE) {
+    /**
+     * @dev Revoke roles in factory
+     */
+    function revokeFactoryRole(bytes32 role, address account) external onlyRole(ADMIN_ROLE) {
         _revokeRole(role, account);
     }
 }
