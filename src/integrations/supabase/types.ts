@@ -465,8 +465,27 @@ export type Database = {
         }
         Relationships: []
       }
+      pledges_analytics_safe: {
+        Row: {
+          asset_type: string | null
+          avg_value_rounded: number | null
+          month_num: number | null
+          status: string | null
+          total_count: number | null
+          week_created: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
+      admin_update_pledge_secure: {
+        Args: {
+          p_admin_notes?: string
+          p_new_status: string
+          p_pledge_id: string
+        }
+        Returns: boolean
+      }
       admin_update_pledge_status: {
         Args: {
           p_admin_notes?: string
@@ -482,6 +501,20 @@ export type Database = {
       get_current_user_role: {
         Args: Record<PropertyKey, never>
         Returns: string
+      }
+      get_pledges_admin_secure: {
+        Args: { p_limit?: number; p_mask_financial_data?: boolean }
+        Returns: {
+          admin_notes: string
+          appraised_value_display: string
+          asset_type: string
+          created_at: string
+          id: string
+          status: string
+          updated_at: string
+          user_email: string
+          user_id: string
+        }[]
       }
       get_pledges_admin_view: {
         Args: { p_limit?: number; p_mask_financial_data?: boolean }
