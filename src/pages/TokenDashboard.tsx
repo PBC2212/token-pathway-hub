@@ -189,9 +189,9 @@ const TokenDashboard = () => {
         return;
       }
 
-      // Fetch pledges
+      // Fetch pledges (no need to pass address - RLS handles user filtering)
       const { data: pledgesResponse, error: pledgesError } = await supabase.functions.invoke('get-pledges', {
-        body: { address }
+        body: {}
       });
 
       if (pledgesError) {
@@ -205,9 +205,9 @@ const TokenDashboard = () => {
         setPledgeData(pledgesResponse);
       }
 
-      // Fetch token balances
+      // Fetch token balances (no need to pass address - RLS handles user filtering)
       const { data: balancesResponse, error: balancesError } = await supabase.functions.invoke('get-token-balance', {
-        body: { address }
+        body: {}
       });
 
       if (balancesError) {

@@ -38,23 +38,21 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Get address from URL path
-    const url = new URL(req.url);
-    const pathParts = url.pathname.split('/');
-    const address = pathParts[pathParts.length - 1];
-
-    if (!address) {
-      return new Response(
-        JSON.stringify({ error: 'Address parameter is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    // Parse request body to get any additional parameters (optional)
+    let requestData = {};
+    try {
+      if (req.method === 'POST' && req.body) {
+        requestData = await req.json();
+      }
+    } catch (e) {
+      // GET request or no body - that's fine
     }
 
-    // Get pledges from Supabase
+    // Get pledges from Supabase using secure user_id authentication
+    // The RLS policies will automatically filter to only show the authenticated user's pledges
     const { data: pledges, error: pledgeError } = await supabase
       .from('pledges')
       .select('*')
-      .eq('user_address', address)
       .order('created_at', { ascending: false });
 
     if (pledgeError) {
@@ -90,7 +88,8 @@ Deno.serve(async (req) => {
     }, {} as Record<string, { count: number; totalValue: number; totalTokens: number }>) || {};
 
     const response = {
-      address,
+      userId: user.id,
+      userEmail: user.email,
       pledges: pledges || [],
       summary: {
         totalPledges,

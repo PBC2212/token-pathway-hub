@@ -38,23 +38,20 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Get address from URL path
-    const url = new URL(req.url);
-    const pathParts = url.pathname.split('/');
-    const address = pathParts[pathParts.length - 1];
-
-    if (!address) {
-      return new Response(
-        JSON.stringify({ error: 'Address parameter is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    // Parse request body to get any additional parameters (optional)
+    let requestData = {};
+    try {
+      if (req.method === 'POST' && req.body) {
+        requestData = await req.json();
+      }
+    } catch (e) {
+      // GET request or no body - that's fine
     }
 
-    // Get token balances from Supabase
+    // Get token balances from Supabase using secure RLS authentication
     const { data: balances, error: balanceError } = await supabase
       .from('token_balances')
-      .select('*')
-      .eq('user_address', address);
+      .select('*');
 
     if (balanceError) {
       console.error('Error fetching token balances:', balanceError);
@@ -67,11 +64,10 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Calculate total USD value based on pledged assets
+    // Calculate total USD value based on pledged assets using secure RLS authentication
     const { data: pledges, error: pledgeError } = await supabase
       .from('pledges')
-      .select('appraised_value, token_amount, asset_type')
-      .eq('user_address', address);
+      .select('appraised_value, token_amount, asset_type');
 
     let totalUsdValue = 0;
     if (!pledgeError && pledges) {
@@ -79,7 +75,8 @@ Deno.serve(async (req) => {
     }
 
     const response = {
-      address,
+      userId: user.id,
+      userEmail: user.email,
       balances: balances || [],
       totalUsdValue,
       lastUpdated: new Date().toISOString()
