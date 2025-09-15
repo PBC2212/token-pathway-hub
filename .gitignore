@@ -22,3 +22,38 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Environment variables
+.env
+.env.local
+.env.production
+.env.development
+.env.*.local
+.env.test
+
+# Fireblocks and blockchain security
+fireblocks_private_key.pem
+*.pem
+*.p12
+*.pfx
+keystore/
+wallets/
+
+# Smart contract artifacts (if using Hardhat/Truffle)
+artifacts/
+cache/
+typechain/
+typechain-types/
+
+# Database backups and sensitive data
+*.db
+*.sqlite
+*.sql
+backups/
+dumps/
+
+# API keys and secrets
+secrets/
+credentials/
+config/production.json
+config/staging.json
