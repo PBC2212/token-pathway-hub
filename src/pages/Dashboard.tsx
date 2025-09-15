@@ -314,6 +314,23 @@ const Dashboard = () => {
                 </Button>
               </Card>
 
+              <Card className="p-6 hover:shadow-md transition-shadow cursor-pointer" onClick={() => navigate('/defi')}>
+                <div className="flex items-center gap-4">
+                  <div className="p-3 rounded-lg bg-purple-100">
+                    <Droplets className="h-6 w-6 text-purple-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold">DeFi Dashboard</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Complete DeFi experience: Create pools, stake, and earn rewards
+                    </p>
+                  </div>
+                </div>
+                <Button className="w-full mt-4">
+                  Launch DeFi
+                </Button>
+              </Card>
+
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -93,8 +93,8 @@ const AssetOverview = () => {
 
       const mintedTokens: AssetBalance[] = (balanceData || []).map(token => ({
         symbol: token.token_symbol,
-        balance: parseFloat(token.balance),
-        value_usd: parseFloat(token.balance) * Math.random() * 1000, // Mock USD value
+        balance: typeof token.balance === 'string' ? parseFloat(token.balance) : token.balance,
+        value_usd: (typeof token.balance === 'string' ? parseFloat(token.balance) : token.balance) * Math.random() * 1000, // Mock USD value
         asset_type: 'token',
         change_24h: Math.random() * 10 - 5
       }));

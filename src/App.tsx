@@ -7,6 +7,7 @@ import { AuthProvider } from "@/hooks/useAuth";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
+import DeFiDashboard from "./pages/DeFiDashboard";
 import Admin from "./pages/Admin";
 import LearnMore from "./pages/LearnMore";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
@@ -38,6 +39,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/defi" element={<DeFiDashboard />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="/learn-more" element={<LearnMore />} />
             <Route path="/pledge" element={<PledgePage />} />

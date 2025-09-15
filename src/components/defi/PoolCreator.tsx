@@ -61,7 +61,7 @@ const PoolCreator = () => {
         // User's minted tokens
         ...(balances || []).map(balance => ({
           symbol: balance.token_symbol,
-          balance: parseFloat(balance.balance),
+          balance: typeof balance.balance === 'string' ? parseFloat(balance.balance) : balance.balance,
           name: balance.token_symbol,
           type: 'minted' as const
         })),
