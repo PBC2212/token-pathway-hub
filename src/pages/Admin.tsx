@@ -19,10 +19,13 @@ const Admin = () => {
   const [profileLoading, setProfileLoading] = useState(true);
 
   useEffect(() => {
+    if (loading) return;
     if (user) {
       checkAdminAccess();
+    } else {
+      setProfileLoading(false);
     }
-  }, [user]);
+  }, [user, loading]);
 
   const checkAdminAccess = async () => {
     try {
