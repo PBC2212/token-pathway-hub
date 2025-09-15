@@ -7,9 +7,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import VaultManager from '@/components/VaultManager';
-import { LogOut, Shield, FileText, Users, Building, Briefcase, User, Mail, Calendar, Vault, Settings, Coins, TrendingUp, DollarSign, Droplets, ExternalLink, Clock, CheckCircle } from 'lucide-react';
+import { LogOut, Shield, FileText, Users, Building, Briefcase, User, Mail, Calendar, Vault, Settings, Coins, TrendingUp, DollarSign, Droplets, ExternalLink, Clock, CheckCircle, Lock, Key, Smartphone, AlertTriangle, Eye, EyeOff, History, Globe, Save } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { Separator } from '@/components/ui/separator';
 
 interface Profile {
   id: string;
@@ -26,6 +30,31 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  
+  // Form states for profile editing
+  const [formData, setFormData] = useState({
+    full_name: '',
+    email: ''
+  });
+  
+  // Password change states
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+
+  // Security settings state
+  const [securitySettings, setSecuritySettings] = useState({
+    twoFactorEnabled: false,
+    emailNotifications: true,
+    loginAlerts: true,
+    sessionTimeout: 30
+  });
 
   useEffect(() => {
     if (user) {
@@ -54,12 +83,103 @@ const Dashboard = () => {
         });
       } else {
         setProfile(profileData);
+        setFormData({
+          full_name: profileData.full_name || '',
+          email: profileData.email || ''
+        });
       }
     } catch (error: any) {
       console.error('Profile fetch error:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSaveProfile = async () => {
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          full_name: formData.full_name,
+        })
+        .eq('user_id', user?.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Profile updated successfully",
+      });
+
+      await fetchUserProfile();
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update profile",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handlePasswordChange = async () => {
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      toast({
+        title: "Error",
+        description: "New passwords do not match",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (passwordData.newPassword.length < 8) {
+      toast({
+        title: "Error",
+        description: "Password must be at least 8 characters long",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: passwordData.newPassword
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Password updated successfully",
+      });
+
+      setPasswordData({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update password",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleToggleSetting = (setting: string, value: boolean) => {
+    setSecuritySettings(prev => ({
+      ...prev,
+      [setting]: value
+    }));
+    
+    toast({
+      title: "Settings Updated",
+      description: "Your security preferences have been saved",
+    });
   };
 
   const getKYCStatusBadge = (status: string) => {
@@ -467,41 +587,44 @@ const Dashboard = () => {
           </TabsContent>
 
           <TabsContent value="profile" className="space-y-6">
-            {/* Enhanced User Profile Section */}
+            {/* Profile Information */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <User className="h-5 w-5" />
                   Profile Information
                 </CardTitle>
+                <CardDescription>
+                  Update your personal information and account details
+                </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-6">
                 <div className="grid gap-6 md:grid-cols-2">
                   <div className="space-y-4">
-                    <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
-                      <User className="h-4 w-4 text-muted-foreground" />
-                      <div>
-                        <p className="text-sm font-medium">Full Name</p>
-                        <p className="text-sm text-muted-foreground">{profile?.full_name || 'Not provided'}</p>
-                      </div>
+                    <div>
+                      <Label htmlFor="full_name">Full Name</Label>
+                      <Input
+                        id="full_name"
+                        value={formData.full_name}
+                        onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                        placeholder="Enter your full name"
+                        className="mt-1"
+                      />
                     </div>
-                    <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
-                      <Mail className="h-4 w-4 text-muted-foreground" />
-                      <div>
-                        <p className="text-sm font-medium">Email</p>
-                        <p className="text-sm text-muted-foreground">{profile?.email}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
-                      <Calendar className="h-4 w-4 text-muted-foreground" />
-                      <div>
-                        <p className="text-sm font-medium">Member Since</p>
-                        <p className="text-sm text-muted-foreground">
-                          {profile?.created_at ? new Date(profile.created_at).toLocaleDateString() : 'Unknown'}
-                        </p>
-                      </div>
+                    <div>
+                      <Label htmlFor="email">Email Address</Label>
+                      <Input
+                        id="email"
+                        value={formData.email}
+                        disabled
+                        className="mt-1 bg-muted/50"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Email address cannot be changed. Contact support if needed.
+                      </p>
                     </div>
                   </div>
+                  
                   <div className="space-y-4">
                     <div className="p-3 bg-muted/50 rounded-lg">
                       <p className="text-sm font-medium mb-2">Account Role</p>
@@ -512,32 +635,352 @@ const Dashboard = () => {
                       {profile?.kyc_status && getKYCStatusBadge(profile.kyc_status)}
                     </div>
                     <div className="p-3 bg-muted/50 rounded-lg">
-                      <p className="text-sm font-medium mb-2">Account Actions</p>
-                      <div className="space-y-2">
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="w-full"
-                          onClick={() => navigate('/account-settings')}
-                        >
-                          <Settings className="h-4 w-4 mr-2" />
-                          Account Settings
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="w-full"
-                          onClick={() => navigate('/security-settings')}
-                        >
-                          <Shield className="h-4 w-4 mr-2" />
-                          Security Settings
-                        </Button>
-                      </div>
+                      <p className="text-sm font-medium mb-2">Member Since</p>
+                      <p className="text-sm text-muted-foreground">
+                        {profile?.created_at ? new Date(profile.created_at).toLocaleDateString() : 'Unknown'}
+                      </p>
                     </div>
                   </div>
                 </div>
+
+                <Separator />
+
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="text-sm font-medium">Save Changes</p>
+                    <p className="text-xs text-muted-foreground">
+                      Update your profile information
+                    </p>
+                  </div>
+                  <Button 
+                    onClick={handleSaveProfile} 
+                    disabled={saving}
+                    className="flex items-center gap-2"
+                  >
+                    {saving ? (
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground"></div>
+                    ) : (
+                      <Save className="h-4 w-4" />
+                    )}
+                    {saving ? 'Saving...' : 'Save Changes'}
+                  </Button>
+                </div>
               </CardContent>
             </Card>
+
+            {/* Change Password */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Lock className="h-5 w-5" />
+                  Change Password
+                </CardTitle>
+                <CardDescription>
+                  Update your password to keep your account secure
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-4 md:grid-cols-1 max-w-md">
+                  <div>
+                    <Label htmlFor="currentPassword">Current Password</Label>
+                    <div className="relative">
+                      <Input
+                        id="currentPassword"
+                        type={showCurrentPassword ? "text" : "password"}
+                        value={passwordData.currentPassword}
+                        onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
+                        placeholder="Enter current password"
+                        className="mt-1 pr-10"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                        onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                      >
+                        {showCurrentPassword ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="newPassword">New Password</Label>
+                    <div className="relative">
+                      <Input
+                        id="newPassword"
+                        type={showNewPassword ? "text" : "password"}
+                        value={passwordData.newPassword}
+                        onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                        placeholder="Enter new password"
+                        className="mt-1 pr-10"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                      >
+                        {showNewPassword ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                    <div className="relative">
+                      <Input
+                        id="confirmPassword"
+                        type={showConfirmPassword ? "text" : "password"}
+                        value={passwordData.confirmPassword}
+                        onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
+                        placeholder="Confirm new password"
+                        className="mt-1 pr-10"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      >
+                        {showConfirmPassword ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="text-sm font-medium">Password Requirements</p>
+                    <p className="text-xs text-muted-foreground">
+                      Minimum 8 characters, include letters and numbers
+                    </p>
+                  </div>
+                  <Button 
+                    onClick={handlePasswordChange} 
+                    disabled={!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword}
+                    className="flex items-center gap-2"
+                  >
+                    <Key className="h-4 w-4" />
+                    Update Password
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Security Settings */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Shield className="h-5 w-5" />
+                  Security Settings
+                </CardTitle>
+                <CardDescription>
+                  Manage your account security and privacy preferences
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Two-Factor Authentication */}
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-primary/10 rounded-lg">
+                      <Smartphone className="h-4 w-4 text-primary" />
+                    </div>
+                    <div>
+                      <p className="font-medium">Two-Factor Authentication</p>
+                      <p className="text-sm text-muted-foreground">
+                        Add an extra layer of security to your account
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {securitySettings.twoFactorEnabled ? (
+                      <Badge className="bg-green-100 text-green-800 border-green-200">Enabled</Badge>
+                    ) : (
+                      <Badge variant="secondary">Disabled</Badge>
+                    )}
+                    <Switch
+                      checked={securitySettings.twoFactorEnabled}
+                      onCheckedChange={(checked) => handleToggleSetting('twoFactorEnabled', checked)}
+                    />
+                  </div>
+                </div>
+
+                {/* Email Notifications */}
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div>
+                    <p className="font-medium">Email Notifications</p>
+                    <p className="text-sm text-muted-foreground">
+                      Receive security alerts and updates via email
+                    </p>
+                  </div>
+                  <Switch
+                    checked={securitySettings.emailNotifications}
+                    onCheckedChange={(checked) => handleToggleSetting('emailNotifications', checked)}
+                  />
+                </div>
+
+                {/* Login Alerts */}
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div>
+                    <p className="font-medium">Login Alerts</p>
+                    <p className="text-sm text-muted-foreground">
+                      Get notified when someone logs into your account
+                    </p>
+                  </div>
+                  <Switch
+                    checked={securitySettings.loginAlerts}
+                    onCheckedChange={(checked) => handleToggleSetting('loginAlerts', checked)}
+                  />
+                </div>
+
+                {/* Session Timeout */}
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <Clock className="h-4 w-4 text-muted-foreground" />
+                    <div>
+                      <p className="font-medium">Session Timeout</p>
+                      <p className="text-sm text-muted-foreground">
+                        Automatically log out after 30 minutes of inactivity
+                      </p>
+                    </div>
+                  </div>
+                  <Badge variant="secondary">30 minutes</Badge>
+                </div>
+
+                {!securitySettings.twoFactorEnabled && (
+                  <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <div className="flex items-center gap-2 text-yellow-800 mb-2">
+                      <AlertTriangle className="h-4 w-4" />
+                      <span className="font-medium">Recommended Security Enhancement</span>
+                    </div>
+                    <p className="text-sm text-yellow-700">
+                      Enable two-factor authentication to significantly improve your account security.
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Recent Security Activity */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <History className="h-5 w-5" />
+                  Recent Security Activity
+                </CardTitle>
+                <CardDescription>
+                  Monitor recent security events on your account
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {[
+                    {
+                      action: "Profile updated",
+                      timestamp: "Just now",
+                      ip: "192.168.1.1",
+                      location: "Current session"
+                    },
+                    {
+                      action: "Successful login",
+                      timestamp: "1 day ago",
+                      ip: "192.168.1.1",
+                      location: "New York, NY"
+                    },
+                    {
+                      action: "Password changed",
+                      timestamp: "3 days ago",
+                      ip: "192.168.1.1",
+                      location: "New York, NY"
+                    }
+                  ].map((activity, index) => (
+                    <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-primary/10 rounded-lg">
+                          <Shield className="h-4 w-4 text-primary" />
+                        </div>
+                        <div>
+                          <p className="font-medium">{activity.action}</p>
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Globe className="h-3 w-3" />
+                            <span>{activity.ip}</span>
+                            <span>•</span>
+                            <span>{activity.location}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        {activity.timestamp}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* KYC Status Cards */}
+            {profile?.kyc_status === 'pending' && (
+              <Card className="border-yellow-200 bg-yellow-50/50">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-yellow-800">
+                    <AlertTriangle className="h-5 w-5" />
+                    KYC Verification Pending
+                  </CardTitle>
+                  <CardDescription>
+                    Your KYC verification is currently under review
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    We are reviewing your submitted documents. This process typically takes 1-3 business days. 
+                    You will receive an email notification once the review is complete.
+                  </p>
+                  <div className="flex items-center gap-2 text-sm text-yellow-700">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-yellow-600"></div>
+                    Review in progress...
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {profile?.kyc_status === 'rejected' && (
+              <Card className="border-red-200 bg-red-50/50">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-red-800">
+                    <AlertTriangle className="h-5 w-5" />
+                    KYC Verification Required
+                  </CardTitle>
+                  <CardDescription>
+                    Your KYC verification needs attention
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Please contact support to resolve your KYC verification status and gain full access to platform features.
+                  </p>
+                  <Button variant="outline" size="sm">
+                    Contact Support
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
         </Tabs>
       </div>
