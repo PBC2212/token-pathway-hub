@@ -117,27 +117,21 @@ const AdminPledgeManager: React.FC = () => {
         throw new Error('Not authenticated');
       }
 
-      // Get pledges with user information
+      // Get pledges first, then we'll handle user info separately
       const { data: pledgesData, error: pledgesError } = await supabase
         .from('pledges')
-        .select(`
-          *,
-          profiles:user_id (
-            email,
-            full_name
-          )
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
       if (pledgesError) {
         throw pledgesError;
       }
 
-      // Transform data to include user info
+      // Transform data without user info for now
       const pledgesWithUserInfo: PledgeWithUserInfo[] = pledgesData?.map(pledge => ({
         ...pledge,
-        user_email: pledge.profiles?.email || 'No email',
-        user_name: pledge.profiles?.full_name || 'Unknown User'
+        user_email: 'Loading...',
+        user_name: 'Loading...'
       })) || [];
 
       setPledges(pledgesWithUserInfo);
