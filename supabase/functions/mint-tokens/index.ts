@@ -211,12 +211,14 @@ Deno.serve(async (req) => {
       // Don't fail the entire request if pledge storage fails
     }
 
-    // Update token balance using secure function
+    // Update token balance using enhanced secure function
     const { data: balanceResult, error: balanceError } = await supabase
-      .rpc('update_user_token_balance', {
+      .rpc('update_user_token_balance_secure', {
         p_user_address: address,
         p_token_symbol: tokenSymbol,
-        p_new_balance: amount
+        p_new_balance: amount,
+        p_transaction_reference: fireblocksResult.id,
+        p_operation_type: 'token_minting'
       });
 
     if (balanceError) {

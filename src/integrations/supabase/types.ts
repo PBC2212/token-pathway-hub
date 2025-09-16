@@ -502,6 +502,13 @@ export type Database = {
         Args: { p_affected_tables?: string[]; p_incident_description: string }
         Returns: boolean
       }
+      emergency_freeze_token_balances: {
+        Args: {
+          p_affected_addresses?: string[]
+          p_incident_description: string
+        }
+        Returns: boolean
+      }
       get_current_user_role: {
         Args: Record<PropertyKey, never>
         Returns: string
@@ -622,6 +629,18 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_profile_admin_secure: {
+        Args: { p_access_justification: string; p_target_user_id: string }
+        Returns: {
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          kyc_status: string
+          role: string
+          user_id: string
+        }[]
+      }
       is_service_role_or_admin: {
         Args: Record<PropertyKey, never>
         Returns: boolean
@@ -679,6 +698,20 @@ export type Database = {
           p_user_address: string
         }
         Returns: boolean
+      }
+      update_user_token_balance_secure: {
+        Args: {
+          p_new_balance: number
+          p_operation_type?: string
+          p_token_symbol: string
+          p_transaction_reference?: string
+          p_user_address: string
+        }
+        Returns: boolean
+      }
+      validate_system_security: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
       }
     }
     Enums: {
