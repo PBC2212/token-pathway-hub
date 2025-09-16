@@ -8,7 +8,7 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "0.0.0.0",         // Allows access from external URLs
     port: 8080,              // Port for Replit
-    allowedHosts: "all",     // Fixes the dynamic Replit subdomain issue
+    allowedHosts: true,      // Fixes the dynamic Replit subdomain issue
   },
   plugins: [
     react(), 

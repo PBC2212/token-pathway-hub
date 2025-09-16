@@ -50,7 +50,7 @@ const MintTokensManager = () => {
       const { data, error } = await supabase
         .from('pledges')
         .select('*')
-        .eq('user_address', user.id)
+        .eq('user_id', user.id)
         .eq('status', 'approved')
         .order('approved_at', { ascending: false });
 
