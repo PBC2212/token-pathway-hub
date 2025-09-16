@@ -117,21 +117,27 @@ const AdminPledgeManager: React.FC = () => {
         throw new Error('Not authenticated');
       }
 
-      // Get pledges first, then we'll handle user info separately
-      const { data: pledgesData, error: pledgesError } = await supabase
-        .from('pledges')
-        .select('*')
-        .order('created_at', { ascending: false });
+      // Use the new ultra-secure function for accessing pledge data
+      const { data: secureData, error: secureError } = await supabase.rpc(
+        'get_pledges_ultra_secure',
+        { 
+          p_access_justification: 'Admin dashboard review for pledge status management and compliance monitoring',
+          p_security_level: 'standard',
+          p_limit: 50
+        }
+      );
 
-      if (pledgesError) {
-        throw pledgesError;
+      if (secureError) {
+        throw secureError;
       }
 
-      // Transform data without user info for now
-      const pledgesWithUserInfo: PledgeWithUserInfo[] = pledgesData?.map(pledge => ({
+      // Transform the secure data to match our interface
+      const pledgesWithUserInfo: PledgeWithUserInfo[] = secureData?.map((pledge: any) => ({
         ...pledge,
-        user_email: 'Loading...',
-        user_name: 'Loading...'
+        user_email: 'Protected for Privacy',
+        user_name: 'Protected for Privacy',
+        appraised_value: 0, // Use display value instead
+        user_address: pledge.user_address_display || 'Protected'
       })) || [];
 
       setPledges(pledgesWithUserInfo);
@@ -330,7 +336,7 @@ const AdminPledgeManager: React.FC = () => {
     totalPledges: pledges.length,
     pendingPledges: pledges.filter(p => p.status === 'pending').length,
     approvedPledges: pledges.filter(p => p.status === 'approved').length,
-    totalValue: pledges.reduce((sum, p) => sum + (p.appraised_value || 0), 0)
+    totalValue: 'Protected for Privacy' // Don't calculate totals for security
   };
 
   return (
@@ -378,7 +384,7 @@ const AdminPledgeManager: React.FC = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Total Value</p>
-                <p className="text-2xl font-bold">{formatCurrency(stats.totalValue)}</p>
+                <p className="text-2xl font-bold">{stats.totalValue}</p>
               </div>
               <DollarSign className="h-8 w-8 text-blue-600" />
             </div>
@@ -437,7 +443,7 @@ const AdminPledgeManager: React.FC = () => {
                     <TableCell>
                       {assetTypeMap[pledge.asset_type] || pledge.asset_type}
                     </TableCell>
-                    <TableCell>{formatCurrency(pledge.appraised_value)}</TableCell>
+                    <TableCell>{(pledge as any).appraised_value_display || 'Protected Value'}</TableCell>
                     <TableCell>{getStatusBadge(pledge.status)}</TableCell>
                     <TableCell>{formatDate(pledge.created_at)}</TableCell>
                     <TableCell>
@@ -454,7 +460,7 @@ const AdminPledgeManager: React.FC = () => {
                                 setSelectedPledge(pledge);
                                 setApprovalData({
                                   action: 'approve',
-                                  tokenAmount: Math.floor(pledge.appraised_value / 100),
+                                  tokenAmount: 1000, // Default token amount since we can't calculate from masked value
                                   adminNotes: '',
                                   rejectionReason: ''
                                 });
@@ -497,7 +503,7 @@ const AdminPledgeManager: React.FC = () => {
                                   <div>
                                     <Label>Appraised Value</Label>
                                     <div className="p-2 bg-muted rounded">
-                                      {formatCurrency(selectedPledge.appraised_value)}
+                                      {(selectedPledge as any).appraised_value_display || 'Protected Value'}
                                     </div>
                                   </div>
                                   <div>

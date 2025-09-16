@@ -564,6 +564,27 @@ export type Database = {
           total_appraised_value: number
         }[]
       }
+      get_pledges_ultra_secure: {
+        Args: {
+          p_access_justification: string
+          p_limit?: number
+          p_security_level?: string
+        }
+        Returns: {
+          admin_notes: string
+          appraised_value_display: string
+          asset_type: string
+          created_at: string
+          description_display: string
+          has_documents: boolean
+          id: string
+          risk_level: string
+          status: string
+          updated_at: string
+          user_address_display: string
+          user_id: string
+        }[]
+      }
       is_service_role_or_admin: {
         Args: Record<PropertyKey, never>
         Returns: boolean
@@ -576,6 +597,23 @@ export type Database = {
           p_table_name: string
         }
         Returns: boolean
+      }
+      mask_asset_value: {
+        Args: {
+          p_access_level?: string
+          p_appraised_value: number
+          p_asset_owner_id: string
+          p_requesting_user_id: string
+        }
+        Returns: string
+      }
+      mask_wallet_address: {
+        Args: {
+          p_address: string
+          p_asset_owner_id: string
+          p_requesting_user_id: string
+        }
+        Returns: string
       }
       setup_admin_user: {
         Args: Record<PropertyKey, never>
