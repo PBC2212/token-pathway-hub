@@ -469,6 +469,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_secure_access: {
+        Args: {
+          p_filters?: Json
+          p_justification: string
+          p_operation: string
+          p_table_name: string
+        }
+        Returns: Json
+      }
       admin_update_pledge_secure: {
         Args: {
           p_admin_notes?: string
@@ -489,9 +498,21 @@ export type Database = {
         Args: { target_user_id: string }
         Returns: boolean
       }
+      emergency_financial_lockdown: {
+        Args: { p_affected_tables?: string[]; p_incident_description: string }
+        Returns: boolean
+      }
       get_current_user_role: {
         Args: Record<PropertyKey, never>
         Returns: string
+      }
+      get_financial_data_secure: {
+        Args: {
+          p_access_justification: string
+          p_emergency_level?: string
+          p_table_name: string
+        }
+        Returns: Json
       }
       get_pledge_sensitive_emergency: {
         Args: {
@@ -585,6 +606,22 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_pledges_ultra_secure_v2: {
+        Args: {
+          p_access_justification: string
+          p_limit?: number
+          p_specific_user_id?: string
+        }
+        Returns: {
+          asset_type: string
+          created_at: string
+          has_documents: boolean
+          id: string
+          risk_category: string
+          status: string
+          user_id: string
+        }[]
+      }
       is_service_role_or_admin: {
         Args: Record<PropertyKey, never>
         Returns: boolean
@@ -614,6 +651,14 @@ export type Database = {
           p_requesting_user_id: string
         }
         Returns: string
+      }
+      security_incident_response: {
+        Args: {
+          p_description: string
+          p_immediate_actions?: string[]
+          p_incident_type: string
+        }
+        Returns: Json
       }
       setup_admin_user: {
         Args: Record<PropertyKey, never>
