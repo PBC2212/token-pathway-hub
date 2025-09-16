@@ -3,6 +3,7 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
+const ADMIN_EMAILS = new Set(['info@imecapitaltokenization.com','admin@tokenization.com']);
 interface AuthContextType {
   user: User | null;
   session: Session | null;
@@ -19,21 +20,52 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
-      }
-    );
+  // Ensure a profile row exists and promote known admin emails
+  const ensureProfile = async (currentUser: User) => {
+    try {
+      const { data: existing } = await supabase
+        .from('profiles')
+        .select('id, role, email')
+        .eq('user_id', currentUser.id)
+        .maybeSingle();
 
-    // Check for existing session
+      if (!existing) {
+        await supabase.from('profiles').insert({
+          user_id: currentUser.id,
+          email: currentUser.email,
+          full_name: (currentUser.user_metadata as any)?.full_name ?? currentUser.email
+        });
+      }
+
+      const email = currentUser.email?.toLowerCase();
+      if (email && ADMIN_EMAILS.has(email)) {
+        await supabase
+          .from('profiles')
+          .update({ role: 'admin', kyc_status: 'approved' })
+          .eq('user_id', currentUser.id);
+      }
+    } catch (e) {
+      console.warn('ensureProfile skipped:', e);
+    }
+  };
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      setLoading(false);
+      if (session?.user) {
+        setTimeout(() => { ensureProfile(session.user!); }, 0);
+      }
+    });
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+      if (session?.user) {
+        setTimeout(() => { ensureProfile(session.user!); }, 0);
+      }
     });
 
     return () => subscription.unsubscribe();
