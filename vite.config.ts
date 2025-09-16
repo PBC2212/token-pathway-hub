@@ -6,9 +6,9 @@ import { componentTagger } from "lovable-tagger";
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   server: {
-    host: true, // ✅ Listen on all network interfaces
-    port: 8080,
-    allowedHosts: "all", // ✅ Allow Replit subdomain
+    host: true,              // Allows access from external URLs like Replit
+    port: 8080,              // Or whatever port you're using
+    allowedHosts: "all",     // ✅ THIS fixes the changing Replit subdomain issue
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
   resolve: {
