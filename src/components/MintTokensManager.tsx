@@ -5,218 +5,102 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { Coins, RefreshCw } from 'lucide-react';
+import { Coins, RefreshCw, Loader2 } from 'lucide-react';
 
-interface ApprovedPledge {
+interface PledgeData {
   id: string;
   user_id: string;
   user_address: string;
   asset_type: string;
   appraised_value: number;
-  token_amount: number;
-  token_symbol: string;
+  token_symbol: string | null;
   status: string;
+  token_minted: boolean;
   created_at: string;
-  approved_at: string;
-  token_minted?: boolean;
-  blockchain_tx_hash?: string;
-  pledge_id?: number;
-  ltv_ratio?: string;
 }
 
 const MintTokensManager = () => {
   const { user } = useAuth();
-  const [approvedPledges, setApprovedPledges] = useState<ApprovedPledge[]>([]);
+  const [approvedPledges, setApprovedPledges] = useState<PledgeData[]>([]);
   const [loading, setLoading] = useState(false);
-
-  // Test function to verify component is loaded
-  useEffect(() => {
-    console.log('🔥 SIMPLE TEST VERSION LOADED - If you see this, the component updated!');
-    console.log('User:', user?.id);
-  }, [user]);
+  const [minting, setMinting] = useState<string | null>(null);
 
   const fetchApprovedPledges = async () => {
     if (!user) return;
 
     try {
       setLoading(true);
-      console.log('Fetching pledges...');
       
-      const { data, error } = await supabase
-        .from('pledges')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('status', 'approved')
-        .eq('token_minted', false)
-        .order('created_at', { ascending: false });
+      // Use manual query to avoid TypeScript issues
+      const response = await fetch(`https://fdbcuegidxvdanpoqztv.supabase.co/rest/v1/pledges?user_id=eq.${user.id}&status=eq.approved&token_minted=eq.false&order=created_at.desc`, {
+        headers: {
+          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZkYmN1ZWdpZHh2ZGFucG9xenR2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc1MjkwNjgsImV4cCI6MjA3MzEwNTA2OH0.SWYPRoeCcQdPLhmsujoN4dWouSWUwD3PtFMo4dzmNMU',
+          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
+          'Content-Type': 'application/json'
+        }
+      });
 
-      if (error) {
-        console.error('Error fetching pledges:', error);
-        return;
+      if (!response.ok) {
+        throw new Error('Failed to fetch pledges');
       }
 
-      console.log('Fetched pledges:', data);
-      setApprovedPledges(data || []);
+      const data = await response.json();
+      setApprovedPledges(data as PledgeData[]);
       
     } catch (error) {
-      console.error('Unexpected error:', error);
+      console.error('Error fetching pledges:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch approved pledges',
+        variant: 'destructive'
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  const testEdgeFunction = async () => {
-    console.log('🧪 TESTING EDGE FUNCTION DIRECTLY');
-    
-    if (!user) {
-      console.log('❌ No user logged in');
-      return;
-    }
-
+  const mintStablecoins = async (pledge: PledgeData) => {
     try {
-      const { data: session } = await supabase.auth.getSession();
-      if (!session?.session) {
-        console.log('❌ No session found');
+      setMinting(pledge.id);
+      
+      const { data, error } = await supabase.functions.invoke('mint-tokens', {
+        body: {
+          pledgeId: pledge.id,
+          address: pledge.user_address,
+          amount: Math.floor(pledge.appraised_value * 0.8), // 80% LTV
+          assetType: pledge.asset_type,
+          tokenSymbol: pledge.token_symbol || 'RWA',
+          appraisedValue: pledge.appraised_value
+        }
+      });
+
+      if (error) {
+        console.error('Mint error:', error);
+        toast({
+          title: 'Minting Failed',
+          description: error.message || 'Failed to mint tokens',
+          variant: 'destructive'
+        });
         return;
       }
 
-      console.log('✅ Session found:', session.session.access_token.substring(0, 20) + '...');
-
-      // Get Supabase URL from environment
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-      
-      console.log('🌐 Supabase URL:', supabaseUrl);
-      console.log('🔑 Supabase Key:', supabaseKey?.substring(0, 20) + '...');
-
-      const testUrl = `${supabaseUrl}/functions/v1/mint-tokens`;
-      console.log('📡 Making test request to:', testUrl);
-
-      const testPayload = {
-        test: true,
-        pledgeId: 'test-123',
-        address: '0x1234567890123456789012345678901234567890',
-        amount: 1000,
-        assetType: 'test',
-        tokenSymbol: 'TEST'
-      };
-
-      console.log('📤 Sending payload:', testPayload);
-
-      const response = await fetch(testUrl, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${session.session.access_token}`,
-          'Content-Type': 'application/json',
-          'apikey': supabaseKey
-        },
-        body: JSON.stringify(testPayload)
-      });
-
-      console.log('📡 Response status:', response.status);
-      console.log('📡 Response statusText:', response.statusText);
-      console.log('📡 Response headers:');
-      for (const [key, value] of response.headers.entries()) {
-        console.log(`  ${key}: ${value}`);
-      }
-
-      const responseText = await response.text();
-      console.log('📦 Raw response:', responseText);
-
-      try {
-        const responseJson = JSON.parse(responseText);
-        console.log('📦 Parsed response:', responseJson);
-        
-        toast({
-          title: 'Test Response',
-          description: `Status: ${response.status}, Response: ${responseText.substring(0, 100)}`,
-          variant: response.ok ? 'default' : 'destructive'
-        });
-      } catch (parseError) {
-        console.error('❌ Failed to parse JSON:', parseError);
-        toast({
-          title: 'Test Response (Non-JSON)',
-          description: `Status: ${response.status}, Text: ${responseText.substring(0, 100)}`,
-          variant: 'destructive'
-        });
-      }
-
-    } catch (error) {
-      console.error('💥 Test error:', error);
       toast({
-        title: 'Test Error',
-        description: error.message,
-        variant: 'destructive'
+        title: 'Success!',
+        description: `Tokens minted successfully: ${data?.message || 'Transaction completed'}`,
       });
-    }
-  };
-
-  const mintStablecoins = async (pledge: ApprovedPledge) => {
-    console.log('🚀 MINT CLICKED - Pledge ID:', pledge.id);
-    
-    try {
-      const { data: session } = await supabase.auth.getSession();
-      if (!session?.session) {
-        console.log('❌ No session for minting');
-        return;
-      }
-
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
       
-      const mintUrl = `${supabaseUrl}/functions/v1/mint-tokens`;
-      console.log('🌐 Minting to:', mintUrl);
-
-      const mintPayload = {
-        pledgeId: pledge.id,
-        address: pledge.user_address,
-        amount: Math.floor(pledge.appraised_value * 0.8), // 80% LTV
-        assetType: pledge.asset_type,
-        tokenSymbol: pledge.token_symbol || 'TEST',
-        appraisedValue: pledge.appraised_value
-      };
-
-      console.log('📤 Mint payload:', mintPayload);
-
-      const response = await fetch(mintUrl, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${session.session.access_token}`,
-          'Content-Type': 'application/json',
-          'apikey': supabaseKey
-        },
-        body: JSON.stringify(mintPayload)
-      });
-
-      console.log('📡 Mint response status:', response.status);
+      // Refresh pledges
+      await fetchApprovedPledges();
       
-      const responseText = await response.text();
-      console.log('📦 Mint response:', responseText);
-
-      if (response.ok) {
-        const data = JSON.parse(responseText);
-        toast({
-          title: 'SUCCESS!',
-          description: `Minted tokens: ${data.message}`,
-        });
-        await fetchApprovedPledges(); // Refresh
-      } else {
-        const errorData = JSON.parse(responseText);
-        console.error('❌ Mint failed:', errorData);
-        toast({
-          title: 'Mint Failed',
-          description: `${errorData.error}: ${errorData.details || ''}`,
-          variant: 'destructive'
-        });
-      }
-
     } catch (error) {
-      console.error('💥 Mint error:', error);
+      console.error('Unexpected mint error:', error);
       toast({
         title: 'Unexpected Error',
-        description: error.message,
+        description: 'An error occurred during minting',
         variant: 'destructive'
       });
+    } finally {
+      setMinting(null);
     }
   };
 
@@ -238,52 +122,80 @@ const MintTokensManager = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Coins className="h-6 w-6" />
-          <h2 className="text-2xl font-bold">SIMPLE TEST VERSION - Mint Tokens</h2>
+          <Coins className="h-6 w-6 text-primary" />
+          <h2 className="text-2xl font-bold">Mint Tokens</h2>
         </div>
-        <div className="flex gap-2">
-          <Button onClick={testEdgeFunction} variant="secondary">
-            Test Edge Function
-          </Button>
-          <Button onClick={fetchApprovedPledges} disabled={loading} variant="outline">
-            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-            {loading ? 'Loading...' : 'Refresh'}
-          </Button>
-        </div>
-      </div>
-
-      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-        <h3 className="font-semibold text-yellow-900 mb-2">SIMPLE TEST VERSION</h3>
-        <p className="text-yellow-800 text-sm">
-          This version has detailed console logging. Open browser console (F12) to see all debug info.
-          Use "Test Edge Function" button to test the connection first.
-        </p>
+        <Button onClick={fetchApprovedPledges} disabled={loading} variant="outline">
+          <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+          {loading ? 'Loading...' : 'Refresh'}
+        </Button>
       </div>
 
       <div className="space-y-4">
         {approvedPledges.map((pledge) => (
-          <Card key={pledge.id}>
+          <Card key={pledge.id} className="border-l-4 border-l-primary">
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
-                <span>{pledge.asset_type} (${pledge.appraised_value.toLocaleString()})</span>
-                <Badge>Approved</Badge>
+                <div className="flex flex-col gap-1">
+                  <span className="text-lg">{pledge.asset_type}</span>
+                  <span className="text-sm text-muted-foreground">
+                    Appraised Value: ${pledge.appraised_value?.toLocaleString() || 'N/A'}
+                  </span>
+                </div>
+                <Badge variant="secondary" className="bg-green-100 text-green-800">
+                  Approved
+                </Badge>
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="font-medium">Asset Type:</span> {pledge.asset_type}
+                </div>
+                <div>
+                  <span className="font-medium">Token Symbol:</span> {pledge.token_symbol || 'RWA'}
+                </div>
+                <div>
+                  <span className="font-medium">LTV Ratio:</span> 80%
+                </div>
+                <div>
+                  <span className="font-medium">Mint Amount:</span> 
+                  ${Math.floor((pledge.appraised_value || 0) * 0.8).toLocaleString()}
+                </div>
+              </div>
+              
               <Button
                 onClick={() => mintStablecoins(pledge)}
+                disabled={minting === pledge.id}
                 className="w-full"
+                size="lg"
               >
-                Mint Tokens for Pledge {pledge.id.substring(0, 8)}...
+                {minting === pledge.id ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Minting Tokens...
+                  </>
+                ) : (
+                  <>
+                    <Coins className="h-4 w-4 mr-2" />
+                    Mint Tokens
+                  </>
+                )}
               </Button>
             </CardContent>
           </Card>
         ))}
 
         {approvedPledges.length === 0 && !loading && (
-          <div className="text-center py-8">
-            <p>No approved pledges found</p>
-          </div>
+          <Card>
+            <CardContent className="text-center py-8">
+              <Coins className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <p className="text-muted-foreground">No approved pledges available for minting</p>
+              <p className="text-sm text-muted-foreground mt-2">
+                Complete your pledge approval process to mint tokens
+              </p>
+            </CardContent>
+          </Card>
         )}
       </div>
     </div>
