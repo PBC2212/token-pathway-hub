@@ -171,12 +171,12 @@ serve(async (req) => {
       );
     }
 
-    // CRITICAL SECURITY: Calculate amount using enhanced schema fields (smart contract alignment)
+    // CRITICAL SECURITY: Calculate amount using ONLY database values (smart contract alignment)
     const ltvRatio = pledgeData.ltv_ratio || 8000; // Default 80% LTV (8000 basis points)
-    // Use existing appraisedValue from above validation
+    const dbAppraisedValue = parseFloat(String(pledgeData.appraised_value || 0)); // Use DB value only
     
-    // Server-side calculation using LTV from schema (aligning with RWABackedStablecoin.sol)
-    const serverCalculatedAmount = Math.floor(appraisedValue * (ltvRatio / 10000));
+    // Server-side calculation using ONLY database values (preventing client manipulation)
+    const serverCalculatedAmount = Math.floor(dbAppraisedValue * (ltvRatio / 10000));
     const serverTokenSymbol = pledgeData.token_symbol || 'RWA';
     
     // Reject if client tries to manipulate amounts or symbols
@@ -186,7 +186,7 @@ serve(async (req) => {
           error: 'Amount or token symbol manipulation detected',
           details: `Expected amount: ${serverCalculatedAmount} (${ltvRatio/100}% LTV), token: ${serverTokenSymbol}`,
           provided: { amount, tokenSymbol },
-          calculation: { appraisedValue, ltvRatio, expectedAmount: serverCalculatedAmount }
+          calculation: { dbAppraisedValue, ltvRatio, expectedAmount: serverCalculatedAmount }
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -230,7 +230,7 @@ serve(async (req) => {
             { type: 'address', value: pledgeData.user_address },
             { type: 'uint256', value: (serverCalculatedAmount * Math.pow(10, 18)).toString() },
             { type: 'string', value: assetType },
-            { type: 'uint256', value: pledgeData.appraised_value.toString() }
+            { type: 'uint256', value: dbAppraisedValue.toString() }
           ]
         }
       }
@@ -311,10 +311,11 @@ serve(async (req) => {
         message: `Successfully minted ${serverCalculatedAmount} ${serverTokenSymbol} tokens for ${assetType} asset`,
         details: {
           assetType: assetType,
-          appraisedValue: pledgeData.appraised_value,
+          appraisedValue: dbAppraisedValue,
           tokenAmount: serverCalculatedAmount,
           tokenSymbol: serverTokenSymbol,
-          ltv: '80%',
+          ltv: `${ltvRatio/100}%`, // Dynamic LTV from database
+          ltvRatio: ltvRatio,
           fireblocksMode: 'mock' // Indicate mock mode since no real API keys
         }
       }),
