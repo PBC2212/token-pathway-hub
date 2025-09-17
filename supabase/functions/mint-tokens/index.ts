@@ -1,3 +1,4 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
@@ -91,7 +92,7 @@ interface MintRequest {
   pledgeId?: string;
 }
 
-Deno.serve(async (req) => {
+serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -129,9 +130,59 @@ Deno.serve(async (req) => {
     const { address, amount, assetType, appraisedValue, tokenSymbol, pledgeId } = mintRequest;
 
     // Validate input
-    if (!address || !amount || !assetType || !appraisedValue || !tokenSymbol) {
+    if (!address || !amount || !assetType || !appraisedValue || !tokenSymbol || !pledgeId) {
       return new Response(
-        JSON.stringify({ error: 'Missing required fields' }),
+        JSON.stringify({ error: 'Missing required fields. PledgeId is required.' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // CRITICAL SECURITY: Validate pledge ownership, status, and minting eligibility
+    const { data: pledgeData, error: pledgeError } = await supabase
+      .from('pledges')
+      .select('*')
+      .eq('id', pledgeId)
+      .eq('user_id', user.id) // Ensure user owns the pledge
+      .eq('status', 'approved') // Only approved pledges
+      .eq('token_minted', false) // Not already minted
+      .single();
+
+    if (pledgeError || !pledgeData) {
+      return new Response(
+        JSON.stringify({ 
+          error: pledgeError ? 'Pledge not found or access denied' : 'Pledge not eligible for minting',
+          details: 'Only your own approved, unminted pledges can be used for token minting'
+        }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Validate that the request data matches the pledge data (normalize addresses)
+    const pledgeAddress = pledgeData.user_address.toLowerCase();
+    const requestAddress = address.toLowerCase();
+    
+    if (pledgeAddress !== requestAddress || pledgeData.asset_type !== assetType) {
+      return new Response(
+        JSON.stringify({ 
+          error: 'Request data does not match pledge data',
+          details: 'Address and asset type must match the approved pledge'
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // CRITICAL SECURITY: Calculate amount and token symbol server-side from pledge data
+    const serverCalculatedAmount = Math.floor((pledgeData.appraised_value || 0) * 0.8); // 80% LTV
+    const serverTokenSymbol = pledgeData.token_symbol || 'RWA';
+    
+    // Reject if client tries to manipulate amounts or symbols
+    if (Math.abs(amount - serverCalculatedAmount) > 0.01 || tokenSymbol !== serverTokenSymbol) {
+      return new Response(
+        JSON.stringify({ 
+          error: 'Amount or token symbol manipulation detected',
+          details: `Expected amount: ${serverCalculatedAmount}, token: ${serverTokenSymbol}`,
+          provided: { amount, tokenSymbol }
+        }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -141,7 +192,7 @@ Deno.serve(async (req) => {
 
     console.log('Simulating token minting operation (development mode)');
     
-    // Mock Fireblocks mint transaction
+    // Mock Fireblocks mint transaction using server-calculated values
     const mockTransactionId = `mock_mint_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
     const fireblocksResult = {
       id: mockTransactionId,
@@ -165,78 +216,102 @@ Deno.serve(async (req) => {
       txHash: '',
       subStatus: 'PENDING_SIGNATURE',
       operation: 'CONTRACT_CALL',
-      note: `Minting ${amount} ${tokenSymbol} tokens for ${assetType} asset`,
+      note: `Minting ${serverCalculatedAmount} ${serverTokenSymbol} tokens for ${assetType} asset`,
       extraParameters: {
         contractCallData: {
           contractAddress,
           functionName: 'mint',
           parameters: [
-            { type: 'address', value: address },
-            { type: 'uint256', value: (amount * Math.pow(10, 18)).toString() },
+            { type: 'address', value: pledgeData.user_address },
+            { type: 'uint256', value: (serverCalculatedAmount * Math.pow(10, 18)).toString() },
             { type: 'string', value: assetType },
-            { type: 'uint256', value: appraisedValue.toString() }
+            { type: 'uint256', value: pledgeData.appraised_value.toString() }
           ]
         }
       }
     };
 
-    // Store or update pledge record in Supabase
-    let pledge: any = null;
-    let pledgeError: any = null;
+    // Securely update the validated pledge record
+    const { data: updatedPledge, error: pledgeUpdateError } = await supabase
+      .from('pledges')
+      .update({ 
+        tx_hash: fireblocksResult.id,
+        token_minted: true,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', pledgeId)
+      .eq('user_id', user.id) // Double-check ownership on update
+      .eq('token_minted', false) // Ensure it wasn't already minted (prevent race conditions)
+      .select()
+      .single();
 
-    if (pledgeId) {
-      const { data, error } = await supabase
-        .from('pledges')
-        .update({ 
-          tx_hash: fireblocksResult.id,
-          token_minted: true 
-        })
-        .eq('id', pledgeId)
-        .select()
-        .single();
-      pledge = data;
-      pledgeError = error;
-    } else {
-      const { data, error } = await supabase
-        .from('pledges')
-        .insert({
-          user_address: address,
-          asset_type: assetType,
-          appraised_value: appraisedValue,
-          token_amount: amount,
-          tx_hash: fireblocksResult.id // Store Fireblocks transaction ID
-        })
-        .select()
-        .single();
-      pledge = data;
-      pledgeError = error;
+    if (pledgeUpdateError || !updatedPledge) {
+      console.error('Error updating pledge:', pledgeUpdateError);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Failed to update pledge record',
+          details: 'Pledge may have already been minted or access denied'
+        }),
+        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    if (pledgeError) {
-      console.error('Error storing pledge:', pledgeError);
-      // Don't fail the entire request if pledge storage fails
-    }
-
-    // Update token balance using enhanced secure function
+    // Update token balance using enhanced secure function with server values
     const { data: balanceResult, error: balanceError } = await supabase
       .rpc('update_user_token_balance_secure', {
-        p_user_address: address,
-        p_token_symbol: tokenSymbol,
-        p_new_balance: amount,
+        p_user_address: pledgeData.user_address,
+        p_token_symbol: serverTokenSymbol,
+        p_new_balance: serverCalculatedAmount,
         p_transaction_reference: fireblocksResult.id,
         p_operation_type: 'token_minting'
       });
 
+    // CRITICAL: If balance update fails, rollback the pledge update
     if (balanceError) {
       console.error('Error updating token balance:', balanceError);
+      
+      // Rollback pledge to unminted state
+      try {
+        await supabase
+          .from('pledges')
+          .update({ 
+            token_minted: false,
+            tx_hash: null,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', pledgeId)
+          .eq('user_id', user.id);
+        
+        console.log('Rolled back pledge due to balance update failure');
+      } catch (rollbackError) {
+        console.error('CRITICAL: Failed to rollback pledge after balance error:', rollbackError);
+      }
+      
+      return new Response(
+        JSON.stringify({ 
+          error: 'Token balance update failed',
+          details: 'Minting operation was rolled back. Please try again.',
+          balanceError: balanceError.message
+        }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     return new Response(
       JSON.stringify({
         success: true,
         transactionId: fireblocksResult.id,
-        pledgeId: pledge?.id,
-        message: `Successfully initiated minting of ${amount} ${tokenSymbol} tokens`
+        pledgeId: updatedPledge.id,
+        balanceResult: balanceResult,
+        message: `Successfully minted ${serverCalculatedAmount} ${serverTokenSymbol} tokens for ${assetType} asset`,
+        details: {
+          assetType: assetType,
+          appraisedValue: pledgeData.appraised_value,
+          tokenAmount: serverCalculatedAmount,
+          tokenSymbol: serverTokenSymbol,
+          ltv: '80%',
+          fireblocksMode: 'mock' // Indicate mock mode since no real API keys
+        }
       }),
       { 
         status: 200, 
