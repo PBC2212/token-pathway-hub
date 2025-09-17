@@ -86,7 +86,7 @@ interface MintRequest {
   amount: number;
   assetType: string;
   appraisedValue: number;
-  contractAddress: string;
+  contractAddress?: string;
   tokenSymbol: string;
   pledgeId?: string;
 }
@@ -126,15 +126,18 @@ Deno.serve(async (req) => {
 
     // Parse request body
     const mintRequest: MintRequest = await req.json();
-    const { address, amount, assetType, appraisedValue, contractAddress, tokenSymbol } = mintRequest;
+    const { address, amount, assetType, appraisedValue, tokenSymbol, pledgeId } = mintRequest;
 
     // Validate input
-    if (!address || !amount || !assetType || !appraisedValue || !contractAddress || !tokenSymbol) {
+    if (!address || !amount || !assetType || !appraisedValue || !tokenSymbol) {
       return new Response(
         JSON.stringify({ error: 'Missing required fields' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    // Use a default contract address for mock operations
+    const contractAddress = mintRequest.contractAddress || '0x1234567890123456789012345678901234567890';
 
     console.log('Simulating token minting operation (development mode)');
     
@@ -181,11 +184,14 @@ Deno.serve(async (req) => {
     let pledge: any = null;
     let pledgeError: any = null;
 
-    if (mintRequest.pledgeId) {
+    if (pledgeId) {
       const { data, error } = await supabase
         .from('pledges')
-        .update({ tx_hash: fireblocksResult.id })
-        .eq('id', mintRequest.pledgeId)
+        .update({ 
+          tx_hash: fireblocksResult.id,
+          token_minted: true 
+        })
+        .eq('id', pledgeId)
         .select()
         .single();
       pledge = data;
