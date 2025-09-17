@@ -171,8 +171,12 @@ serve(async (req) => {
       );
     }
 
-    // CRITICAL SECURITY: Calculate amount and token symbol server-side from pledge data
-    const serverCalculatedAmount = Math.floor((pledgeData.appraised_value || 0) * 0.8); // 80% LTV
+    // CRITICAL SECURITY: Calculate amount using enhanced schema fields (smart contract alignment)
+    const ltvRatio = pledgeData.ltv_ratio || 8000; // Default 80% LTV (8000 basis points)
+    // Use existing appraisedValue from above validation
+    
+    // Server-side calculation using LTV from schema (aligning with RWABackedStablecoin.sol)
+    const serverCalculatedAmount = Math.floor(appraisedValue * (ltvRatio / 10000));
     const serverTokenSymbol = pledgeData.token_symbol || 'RWA';
     
     // Reject if client tries to manipulate amounts or symbols
@@ -180,8 +184,9 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           error: 'Amount or token symbol manipulation detected',
-          details: `Expected amount: ${serverCalculatedAmount}, token: ${serverTokenSymbol}`,
-          provided: { amount, tokenSymbol }
+          details: `Expected amount: ${serverCalculatedAmount} (${ltvRatio/100}% LTV), token: ${serverTokenSymbol}`,
+          provided: { amount, tokenSymbol },
+          calculation: { appraisedValue, ltvRatio, expectedAmount: serverCalculatedAmount }
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );

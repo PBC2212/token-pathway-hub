@@ -42,28 +42,43 @@ export const user_agreements = pgTable('user_agreements', {
   updated_at: timestamp('updated_at', { withTimezone: true }).notNull().default(sql`now()`)
 });
 
-// Pledges table
+// Smart Contract Enums for type safety
+export const pledgeStatusEnum = ['Pending', 'Verified', 'Minted', 'Rejected', 'Cancelled', 'Redeemed', 'Liquidated'] as const;
+export const rwaCategoryEnum = ['RealEstate', 'Commodities', 'Bonds', 'Equipment', 'Inventory', 'Other'] as const;
+
+// Pledges table - SAFELY adding smart contract fields while preserving existing structure
 export const pledges = pgTable('pledges', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
-  pledge_id: integer('pledge_id').notNull().unique(),
+  pledge_id: integer('pledge_id').notNull().unique(), // Keep existing serial structure - DO NOT CHANGE
   user_id: uuid('user_id').notNull(),
   user_address: text('user_address').notNull(),
   asset_type: text('asset_type').notNull(),
   appraised_value: numeric('appraised_value').notNull(),
   token_amount: numeric('token_amount'),
-  token_symbol: text('token_symbol'),
+  token_symbol: text('token_symbol').default('RWA'),
   contract_address: text('contract_address'),
   description: text('description'),
   document_hash: text('document_hash'),
   appraisal_date: timestamp('appraisal_date').default(sql`CURRENT_DATE`),
   appraiser_license: text('appraiser_license'),
-  status: text('status').default('pending'),
+  status: text('status').default('pending'), // Keep existing default
   approved_at: timestamp('approved_at', { withTimezone: true }),
   approved_by: uuid('approved_by'),
   rejection_reason: text('rejection_reason'),
   admin_notes: text('admin_notes'),
   nft_token_id: integer('nft_token_id'),
   tx_hash: text('tx_hash'),
+  token_minted: boolean('token_minted').default(false), // Keep existing field
+  
+  // NEW SMART CONTRACT FIELDS - Adding without breaking existing
+  rwa_identifier: text('rwa_identifier'), // Will be populated for new pledges
+  rwa_category: text('rwa_category').default('Other'), // RwaCategory enum
+  ltv_ratio: integer('ltv_ratio').default(8000), // 80% in basis points
+  metadata: text('metadata'), // Additional RWA info
+  is_redeemable: boolean('is_redeemable').default(true),
+  last_valuation_time: timestamp('last_valuation_time', { withTimezone: true }),
+  verified_by_address: text('verified_by_address'), // Smart contract verifier address
+  
   created_at: timestamp('created_at', { withTimezone: true }).notNull().default(sql`now()`),
   updated_at: timestamp('updated_at', { withTimezone: true }).notNull().default(sql`now()`)
 });
@@ -208,3 +223,7 @@ export const cognitoSubmissionsRelations = relations(cognito_submissions, ({ one
     references: [user_agreements.id]
   })
 }));
+
+// Type definitions for smart contract alignment
+export type PledgeStatus = typeof pledgeStatusEnum[number];
+export type RwaCategory = typeof rwaCategoryEnum[number];
