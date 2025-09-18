@@ -12,19 +12,20 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
-// Enhanced smart contract integration types
+// Multi-Token Smart Contract Integration (MultiTokenRwaBackedStablecoin.sol)
 interface ContractConfig {
-  pledgeFactoryAddress: string;
-  pledgeEscrowAddress: string;
-  pledgeNFTAddress: string;
+  multiTokenContractAddress: string;
+  treasuryAddress: string;
   fireblocksVaultAccountId: string;
 }
 
-interface AssetTypeMapping {
+interface RwaCategoryMapping {
   value: string;
   label: string;
   symbol: string;
-  contractType: number;
+  tokenName: string;
+  contractCategory: number; // Maps to RwaCategory enum (0-5)
+  description: string;
 }
 
 interface PledgeResponse {
@@ -49,24 +50,69 @@ const PledgePage = () => {
   
   const [formData, setFormData] = useState({
     walletAddress: '',
-    assetType: '',
+    assetType: '', // Now maps to RWA category
+    rwaCategory: '', // Explicit category field
     appraisedValue: '',
-    tokenSymbol: 'RET',
+    tokenSymbol: 'OUSD', // Default to Other category token
     description: '',
     appraisalDate: '',
     appraiserLicense: '',
     documentFile: null as File | null,
     documentHash: '',
+    isRedeemable: true, // New field from MultiTokenRwaBackedStablecoin
+    metadata: '', // Enhanced metadata field
   });
 
-  // Asset types with smart contract enum mapping - matches backend exactly
-  const assetTypes: AssetTypeMapping[] = [
-    { value: 'real_estate', label: 'Real Estate', symbol: 'RET', contractType: 0 },
-    { value: 'gold', label: 'Gold', symbol: 'GLD', contractType: 1 },
-    { value: 'vehicle', label: 'Vehicle', symbol: 'VET', contractType: 2 },
-    { value: 'art', label: 'Art & Collectibles', symbol: 'ART', contractType: 3 },
-    { value: 'equipment', label: 'Equipment', symbol: 'EQT', contractType: 4 },
-    { value: 'commodity', label: 'Commodity', symbol: 'COM', contractType: 5 }
+  // RWA Categories from MultiTokenRwaBackedStablecoin.sol - each gets its own token
+  const rwaCategories: RwaCategoryMapping[] = [
+    { 
+      value: 'RealEstate', 
+      label: 'Real Estate', 
+      symbol: 'RUSD', 
+      tokenName: 'Real Estate USD',
+      contractCategory: 0,
+      description: 'Properties, land, buildings, and real estate investments'
+    },
+    { 
+      value: 'Commodities', 
+      label: 'Commodities', 
+      symbol: 'CUSD', 
+      tokenName: 'Commodities USD',
+      contractCategory: 1,
+      description: 'Gold, silver, oil, agricultural products, and raw materials'
+    },
+    { 
+      value: 'Bonds', 
+      label: 'Bonds', 
+      symbol: 'BUSD', 
+      tokenName: 'Bonds USD',
+      contractCategory: 2,
+      description: 'Government bonds, corporate bonds, and debt securities'
+    },
+    { 
+      value: 'Equipment', 
+      label: 'Equipment', 
+      symbol: 'EUSD', 
+      tokenName: 'Equipment USD',
+      contractCategory: 3,
+      description: 'Machinery, vehicles, industrial equipment, and tools'
+    },
+    { 
+      value: 'Inventory', 
+      label: 'Inventory', 
+      symbol: 'IUSD', 
+      tokenName: 'Inventory USD',
+      contractCategory: 4,
+      description: 'Stock inventory, finished goods, and merchandise'
+    },
+    { 
+      value: 'Other', 
+      label: 'Other Assets', 
+      symbol: 'OUSD', 
+      tokenName: 'Other Assets USD',
+      contractCategory: 5,
+      description: 'Art, collectibles, intellectual property, and other assets'
+    }
   ];
 
   // Load contract configuration on mount
@@ -77,11 +123,10 @@ const PledgePage = () => {
 
   const loadContractConfig = async () => {
     try {
-      // Use Vite's import.meta.env instead of process.env
+      // Multi-token contract configuration
       const config: ContractConfig = {
-        pledgeFactoryAddress: import.meta.env.VITE_PLEDGE_FACTORY_ADDRESS || '',
-        pledgeEscrowAddress: import.meta.env.VITE_PLEDGE_ESCROW_ADDRESS || '',
-        pledgeNFTAddress: import.meta.env.VITE_PLEDGE_NFT_ADDRESS || '',
+        multiTokenContractAddress: import.meta.env.VITE_MULTI_TOKEN_CONTRACT_ADDRESS || '',
+        treasuryAddress: import.meta.env.VITE_TREASURY_ADDRESS || '',
         fireblocksVaultAccountId: import.meta.env.VITE_FIREBLOCKS_VAULT_ID || ''
       };
       
@@ -115,11 +160,12 @@ const PledgePage = () => {
   };
 
   const handleAssetTypeChange = (value: string) => {
-    const selectedAsset = assetTypes.find(asset => asset.value === value);
+    const selectedCategory = rwaCategories.find(category => category.value === value);
     setFormData(prev => ({
       ...prev,
       assetType: value,
-      tokenSymbol: selectedAsset?.symbol || 'TOK'
+      rwaCategory: value, // Set explicit category for backend
+      tokenSymbol: selectedCategory?.symbol || 'OUSD'
     }));
     
     // Clear validation error for this field
@@ -289,11 +335,14 @@ const PledgePage = () => {
           asset_type: formData.assetType, // Send frontend string value
           appraised_value: parseFloat(formData.appraisedValue),
           token_symbol: formData.tokenSymbol,
-          contract_address: contractConfig?.pledgeEscrowAddress || '',
+          contract_address: contractConfig?.multiTokenContractAddress || '',
           description: formData.description,
           document_hash: formData.documentHash,
           appraisal_date: formData.appraisalDate,
-          appraiser_license: formData.appraiserLicense
+          appraiser_license: formData.appraiserLicense,
+          rwa_category: formData.rwaCategory || formData.assetType,
+          is_redeemable: formData.isRedeemable,
+          metadata: formData.metadata || formData.description
         },
         headers: {
           Authorization: `Bearer ${session.access_token}`
@@ -334,13 +383,16 @@ const PledgePage = () => {
       setFormData({
         walletAddress: '',
         assetType: '',
+        rwaCategory: '',
         appraisedValue: '',
-        tokenSymbol: 'RET',
+        tokenSymbol: 'OUSD',
         description: '',
         appraisalDate: '',
         appraiserLicense: '',
         documentFile: null,
         documentHash: '',
+        isRedeemable: true,
+        metadata: '',
       });
       
       setValidationErrors({});
@@ -402,7 +454,7 @@ const PledgePage = () => {
                 </>
               )}
             </Badge>
-            {contractConfig?.pledgeEscrowAddress && (
+            {contractConfig?.multiTokenContractAddress && (
               <Badge variant="outline">
                 <Shield className="h-4 w-4 mr-1" />
                 Contract Ready
@@ -486,8 +538,8 @@ const PledgePage = () => {
                   )}
                 </h3>
                 <div className="space-y-1 text-sm">
-                  <p><strong>Escrow:</strong> {contractConfig.pledgeEscrowAddress}</p>
-                  <p><strong>NFT Contract:</strong> {contractConfig.pledgeNFTAddress}</p>
+                  <p><strong>Multi-Token Contract:</strong> {contractConfig.multiTokenContractAddress}</p>
+                  <p><strong>Treasury:</strong> {contractConfig.treasuryAddress}</p>
                   <p><strong>Status:</strong> {fireblocksConnected ? 'Active' : 'Standby (Database Only)'}</p>
                   {contractConfig.fireblocksVaultAccountId && (
                     <p><strong>Fireblocks Vault:</strong> {contractConfig.fireblocksVaultAccountId}</p>
@@ -548,7 +600,10 @@ const PledgePage = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="assetType">Asset Type *</Label>
+                  <Label htmlFor="assetType">RWA Category *</Label>
+                  <p className="text-sm text-muted-foreground mb-2">
+                    Each category has its own dedicated token. Choose the category that best fits your asset.
+                  </p>
                   <Select 
                     onValueChange={handleAssetTypeChange} 
                     value={formData.assetType}
@@ -558,13 +613,21 @@ const PledgePage = () => {
                       <SelectValue placeholder="Select asset type" />
                     </SelectTrigger>
                     <SelectContent>
-                      {assetTypes.map((asset) => (
-                        <SelectItem key={asset.value} value={asset.value}>
-                          <div className="flex items-center justify-between w-full">
-                            <span>{asset.label} ({asset.symbol})</span>
-                            <Badge variant="outline" className="ml-2">
-                              Contract: {asset.contractType}
-                            </Badge>
+                      {rwaCategories.map((category) => (
+                        <SelectItem key={category.value} value={category.value}>
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center justify-between w-full">
+                              <span className="font-medium">{category.label}</span>
+                              <Badge variant="secondary" className="text-xs">
+                                {category.symbol}
+                              </Badge>
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {category.description}
+                            </div>
+                            <div className="text-xs text-blue-600">
+                              Token: {category.tokenName}
+                            </div>
                           </div>
                         </SelectItem>
                       ))}
