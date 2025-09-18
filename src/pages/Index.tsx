@@ -79,9 +79,14 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-secondary/5">
 
+      {/* Blockchain Technology Text - Top Left */}
+      <div className="absolute top-4 left-4 z-40">
+        <span className="text-lg font-semibold text-primary">Blockchain Technology</span>
+      </div>
+
       {/* Admin Panel Button - Top Left for Logged-in Admin Users */}
       {userProfile?.role === 'admin' && (
-        <div className="absolute top-4 left-4 z-50">
+        <div className="absolute top-12 left-4 z-50">
           <Button 
             asChild
             variant="outline"
