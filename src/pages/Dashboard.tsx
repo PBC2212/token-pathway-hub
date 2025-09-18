@@ -863,10 +863,10 @@ const Dashboard = () => {
                            </div>
                          )}
 
-                         {/* Mint Token Button for Approved Pledges */}
-                         {pledge.status === 'approved' && (
+                         {/* Minting Progress and Status */}
+                         {pledge.status === 'approved' && !pledge.token_minted && (
                            <div className="mt-3 p-4 bg-primary/5 border border-primary/20 rounded-lg">
-                             <div className="flex items-center justify-between">
+                             <div className="flex items-center justify-between mb-3">
                                <div>
                                  <h4 className="font-semibold text-primary">Ready for Token Minting</h4>
                                  <p className="text-sm text-muted-foreground">
@@ -890,6 +890,73 @@ const Dashboard = () => {
                                    </>
                                  )}
                                </Button>
+                             </div>
+                             
+                             {/* Minting Details */}
+                             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                               <div>
+                                 <p className="font-medium text-primary">Approved Amount</p>
+                                 <p className="text-muted-foreground">
+                                   {pledge.token_amount?.toLocaleString() || 'Calculating...'}
+                                 </p>
+                               </div>
+                               <div>
+                                 <p className="font-medium text-green-600">Remaining</p>
+                                 <p className="text-muted-foreground">
+                                   {pledge.token_amount?.toLocaleString() || 'Full Amount'}
+                                 </p>
+                               </div>
+                               <div>
+                                 <p className="font-medium text-blue-600">Token Type</p>
+                                 <p className="text-muted-foreground">
+                                   {(pledge as any).category_token_symbol || pledge.token_symbol || 'RWA'}
+                                 </p>
+                               </div>
+                               <div>
+                                 <p className="font-medium text-purple-600">LTV Ratio</p>
+                                 <p className="text-muted-foreground">
+                                   {pledge.ltv_ratio ? `${(parseFloat(pledge.ltv_ratio)/100).toFixed(1)}%` : '80%'}
+                                 </p>
+                               </div>
+                             </div>
+                           </div>
+                         )}
+
+                         {/* Minted Tokens Status */}
+                         {pledge.token_minted && (
+                           <div className="mt-3 p-4 bg-green-50 border border-green-200 rounded-lg">
+                             <div className="flex items-center gap-3">
+                               <CheckCircle className="h-5 w-5 text-green-600" />
+                               <div className="flex-1">
+                                 <h4 className="font-semibold text-green-800">Tokens Successfully Minted</h4>
+                                 <p className="text-sm text-green-600 mt-1">
+                                   {pledge.token_amount?.toLocaleString()} {(pledge as any).category_token_symbol || pledge.token_symbol} tokens have been minted to your wallet.
+                                 </p>
+                               </div>
+                             </div>
+                             
+                             {/* Minting Transaction Details */}
+                             <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-3 text-sm">
+                               <div>
+                                 <p className="font-medium text-green-700">Minted Amount</p>
+                                 <p className="text-green-600">
+                                   {pledge.token_amount?.toLocaleString() || 'N/A'}
+                                 </p>
+                               </div>
+                               <div>
+                                 <p className="font-medium text-green-700">Token Symbol</p>
+                                 <p className="text-green-600">
+                                   {(pledge as any).category_token_symbol || pledge.token_symbol || 'RWA'}
+                                 </p>
+                               </div>
+                               {pledge.tx_hash && (
+                                 <div>
+                                   <p className="font-medium text-green-700">Transaction</p>
+                                   <p className="text-green-600 font-mono text-xs">
+                                     {pledge.tx_hash.substring(0, 10)}...
+                                   </p>
+                                 </div>
+                               )}
                              </div>
                            </div>
                          )}

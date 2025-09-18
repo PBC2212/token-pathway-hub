@@ -151,16 +151,28 @@ serve(async (req) => {
       .eq('id', pledgeId)
       .eq('user_id', user.id) // Ensure user owns the pledge
       .eq('status', 'approved') // Only approved pledges
-      .eq('token_minted', false) // Not already minted
       .single();
 
     if (pledgeError || !pledgeData) {
       return new Response(
         JSON.stringify({ 
           error: pledgeError ? 'Pledge not found or access denied' : 'Pledge not eligible for minting',
-          details: 'Only your own approved, unminted pledges can be used for token minting'
+          details: 'Only your own approved pledges can be used for token minting'
         }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // CRITICAL: Check if tokens have already been minted for this pledge
+    if (pledgeData.token_minted) {
+      return new Response(
+        JSON.stringify({ 
+          error: 'Tokens already minted for this pledge',
+          details: 'Each pledge can only be used for minting once. Tokens have already been minted for this pledge.',
+          pledgeId: pledgeId,
+          previousTxHash: pledgeData.tx_hash
+        }),
+        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -208,26 +220,50 @@ serve(async (req) => {
     // CRITICAL SECURITY: Calculate amount using ONLY database values with proper numeric handling
     const ltvRatio = parseInt(String(pledgeData.ltv_ratio || '8000')) || 8000; // Default 80% LTV (8000 basis points)
     const dbAppraisedValue = parseFloat(String(pledgeData.appraised_value || '0')) || 0; // Handle Postgres numeric strings
-    const dbTokenAmount = parseFloat(String(pledgeData.token_amount || '0')) || 0; // Handle Postgres numeric strings
+    const dbTokenAmount = parseFloat(String(pledgeData.token_amount || '0')) || 0; // Admin-approved amount
     const reserveRatio = 500; // 5% reserves (basis points) - matches contract
     
     console.log('mint-tokens: Database values - category:', rawCategory, '-> normalized:', dbCategory, 
-                'appraised_value:', dbAppraisedValue, 'ltv_ratio:', ltvRatio, 'token_amount:', dbTokenAmount);
+                'appraised_value:', dbAppraisedValue, 'ltv_ratio:', ltvRatio, 'approved_token_amount:', dbTokenAmount);
     
-    // Server-side calculation using ONLY database values (preventing client manipulation)
-    const serverCalculatedAmount = Math.floor(dbAppraisedValue * (ltvRatio / 10000));
-    const reserveAmount = Math.floor(serverCalculatedAmount * (reserveRatio / 10000)); // Treasury reserves
+    // ENFORCE APPROVED TOKEN AMOUNT: Use admin-approved amount, not calculated amount
+    let approvedAmount = dbTokenAmount; // Use admin-approved amount first
+    if (approvedAmount <= 0) {
+      // Fallback to LTV calculation if no admin approval exists
+      approvedAmount = dbAppraisedValue * (ltvRatio / 10000);
+    }
+    
+    const reserveAmount = approvedAmount * (reserveRatio / 10000); // Treasury reserves
     const categoryTokenInfo = categoryTokenMap[dbCategory] || categoryTokenMap['Other'];
     const serverTokenSymbol = categoryTokenInfo.symbol;
     
-    // Reject if client tries to manipulate amounts or symbols
-    if (Math.abs(amount - serverCalculatedAmount) > 0.01 || tokenSymbol !== serverTokenSymbol) {
+    console.log('mint-tokens: Approved amount enforcement - approved:', approvedAmount, 'requested:', amount);
+    
+    // CRITICAL: Enforce that user cannot mint more than approved amount
+    if (amount > approvedAmount + 0.01) { // Small tolerance for floating point
       return new Response(
         JSON.stringify({ 
-          error: 'Amount or token symbol manipulation detected',
-          details: `Expected amount: ${serverCalculatedAmount} (${ltvRatio/100}% LTV), token: ${serverTokenSymbol}`,
-          provided: { amount, tokenSymbol },
-          calculation: { dbAppraisedValue, ltvRatio, expectedAmount: serverCalculatedAmount }
+          error: 'Requested amount exceeds approved limit',
+          details: `Approved amount: ${approvedAmount}, Requested: ${amount}`,
+          approved: approvedAmount,
+          requested: amount,
+          calculation: { dbAppraisedValue, ltvRatio, adminApproved: dbTokenAmount }
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    // Use the approved amount for minting, not the client-requested amount
+    const actualMintAmount = approvedAmount;
+    
+    // Validate token symbol matches category
+    if (tokenSymbol !== serverTokenSymbol) {
+      return new Response(
+        JSON.stringify({ 
+          error: 'Token symbol manipulation detected',
+          details: `Expected token: ${serverTokenSymbol} for category ${dbCategory}`,
+          provided: tokenSymbol,
+          expected: serverTokenSymbol
         }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -250,7 +286,7 @@ serve(async (req) => {
     
     const categoryTokenAddress = mockCategoryTokenAddresses[dbCategory] || mockCategoryTokenAddresses['Other'];
     
-    // Mock MultiTokenRwaBackedStablecoin transaction using server-calculated values
+    // Mock MultiTokenRwaBackedStablecoin transaction using approved amount
     const mockTransactionId = `mock_multitoken_mint_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
     const fireblocksResult = {
       id: mockTransactionId,
@@ -274,7 +310,7 @@ serve(async (req) => {
       txHash: '',
       subStatus: 'PENDING_SIGNATURE',
       operation: 'CONTRACT_CALL',
-      note: `Minting ${serverCalculatedAmount} ${serverTokenSymbol} tokens for ${dbCategory} (${assetType}) asset`,
+      note: `Minting ${actualMintAmount} ${serverTokenSymbol} tokens for ${dbCategory} (${assetType}) asset (approved amount)`,
       extraParameters: {
         contractCallData: {
           contractAddress, // Main MultiTokenRwaBackedStablecoin contract
@@ -286,24 +322,28 @@ serve(async (req) => {
         categoryTokenMint: {
           tokenAddress: categoryTokenAddress, // Category-specific token contract
           tokenSymbol: serverTokenSymbol,
-          userMint: (serverCalculatedAmount * Math.pow(10, 18)).toString(),
+          userMint: (actualMintAmount * Math.pow(10, 18)).toString(),
           treasuryReserves: (reserveAmount * Math.pow(10, 18)).toString(),
           category: dbCategory
         }
       }
     };
 
-    // Securely update the validated pledge record
+    // ATOMIC UPDATE: Ensure one-time minting with race condition protection
     const { data: updatedPledge, error: pledgeUpdateError } = await supabase
       .from('pledges')
       .update({ 
         tx_hash: fireblocksResult.id,
         token_minted: true,
+        category_token_symbol: serverTokenSymbol,
+        category_token_address: categoryTokenAddress,
+        last_minted_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       })
       .eq('id', pledgeId)
       .eq('user_id', user.id) // Double-check ownership on update
-      .eq('token_minted', false) // Ensure it wasn't already minted (prevent race conditions)
+      .eq('status', 'approved') // Ensure still approved
+      .eq('token_minted', false) // CRITICAL: Atomic check - ensure it wasn't already minted
       .select()
       .single();
 
@@ -318,12 +358,12 @@ serve(async (req) => {
       );
     }
 
-    // Update token balance using enhanced secure function with server values
+    // Update token balance using enhanced secure function with approved amount
     const { data: balanceResult, error: balanceError } = await supabase
       .rpc('update_user_token_balance_secure', {
         p_user_address: pledgeData.user_address,
         p_token_symbol: serverTokenSymbol,
-        p_new_balance: serverCalculatedAmount,
+        p_new_balance: actualMintAmount,
         p_transaction_reference: fireblocksResult.id,
         p_operation_type: 'token_minting'
       });
@@ -365,7 +405,7 @@ serve(async (req) => {
         transactionId: fireblocksResult.id,
         pledgeId: updatedPledge.id,
         balanceResult: balanceResult,
-        message: `Successfully minted ${serverCalculatedAmount} ${serverTokenSymbol} tokens for ${dbCategory} (${assetType}) asset`,
+        message: `Successfully minted ${actualMintAmount} ${serverTokenSymbol} tokens for ${dbCategory} (${assetType}) asset`,
         details: {
           // Multi-token system details
           category: dbCategory,
@@ -374,9 +414,9 @@ serve(async (req) => {
           tokenSymbol: serverTokenSymbol,
           
           // Amounts
-          userTokenAmount: serverCalculatedAmount,
+          userTokenAmount: actualMintAmount,
           reserveAmount: reserveAmount,
-          totalMinted: serverCalculatedAmount + reserveAmount,
+          totalMinted: actualMintAmount + reserveAmount,
           
           // Asset details
           assetType: assetType,

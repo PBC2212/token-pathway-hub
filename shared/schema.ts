@@ -94,6 +94,12 @@ export const pledges = pgTable('pledges', {
   category_token_symbol: text('category_token_symbol'), // Symbol of minted token (RUSD, CUSD, etc.)
   reserve_amount: numeric('reserve_amount', { precision: 28, scale: 18 }), // Reserve portion minted to treasury
   
+  // Minting enforcement fields
+  approved_token_amount: numeric('approved_token_amount', { precision: 28, scale: 18 }), // Admin-approved token amount
+  minted_amount: numeric('minted_amount', { precision: 28, scale: 18 }).default('0'), // Cumulative minted amount
+  mint_count: integer('mint_count').default(0), // Number of minting operations
+  last_minted_at: timestamp('last_minted_at', { withTimezone: true }), // Last minting timestamp
+  
   created_at: timestamp('created_at', { withTimezone: true }).notNull().default(sql`now()`),
   updated_at: timestamp('updated_at', { withTimezone: true }).notNull().default(sql`now()`)
 });
@@ -105,6 +111,27 @@ export const token_balances = pgTable('token_balances', {
   token_symbol: text('token_symbol').notNull(),
   balance: numeric('balance').notNull().default('0'),
   updated_at: timestamp('updated_at', { withTimezone: true }).notNull().default(sql`now()`)
+});
+
+// Mint events audit table for tracking all minting activities
+export const mint_events = pgTable('mint_events', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  user_id: uuid('user_id').notNull(),
+  pledge_id: uuid('pledge_id').notNull(),
+  user_address: text('user_address').notNull(),
+  token_symbol: text('token_symbol').notNull(),
+  category: text('category').notNull(),
+  amount_minted: numeric('amount_minted', { precision: 28, scale: 18 }).notNull(),
+  reserve_amount: numeric('reserve_amount', { precision: 28, scale: 18 }).default('0'),
+  tx_hash: text('tx_hash'),
+  contract_address: text('contract_address'),
+  fireblocks_tx_id: text('fireblocks_tx_id'),
+  appraised_value: numeric('appraised_value', { precision: 28, scale: 18 }),
+  ltv_ratio: integer('ltv_ratio'),
+  request_id: text('request_id').unique(), // For idempotency
+  status: text('status').default('completed'), // completed, failed, pending
+  error_message: text('error_message'),
+  created_at: timestamp('created_at', { withTimezone: true }).notNull().default(sql`now()`)
 });
 
 // Liquidity pools table
