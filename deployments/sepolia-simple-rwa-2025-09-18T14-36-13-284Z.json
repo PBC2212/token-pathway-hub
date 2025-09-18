@@ -1,0 +1,57 @@
+{
+  "network": "sepolia",
+  "deployer": "0x7931edfa6255D59AEe5A65D26E6a7e3CF30E8339",
+  "treasury": "0x7931edfa6255D59AEe5A65D26E6a7e3CF30E8339",
+  "timestamp": "2025-09-18T14:33:09.073Z",
+  "contracts": {
+    "simpleRwaBackedStablecoin": "0x7a408cadbC99EE39A0E01f4Cdb10139601163407"
+  },
+  "gasUsed": {
+    "simpleRwaBackedStablecoin": "4642561",
+    "tokenDeployment": "7802165"
+  },
+  "tokens": {
+    "RUSD": {
+      "address": "0x1297F2046FcC526A96a8667E972B009e55f8a845",
+      "name": "Real Estate USD",
+      "symbol": "RUSD",
+      "category": "RealEstate",
+      "active": true
+    },
+    "CUSD": {
+      "address": "0x838d4B07d2A8b14Ce631808E911a51D537c462E7",
+      "name": "Commodities USD",
+      "symbol": "CUSD",
+      "category": "Commodities",
+      "active": true
+    },
+    "BUSD": {
+      "address": "0x85635cd6c1Aa4143b263612448941E343DA296e3",
+      "name": "Bonds USD",
+      "symbol": "BUSD",
+      "category": "Bonds",
+      "active": true
+    },
+    "EUSD": {
+      "address": "0x2FdF5CaFcE00Ed5663a9ade6914F672d9A055292",
+      "name": "Equipment USD",
+      "symbol": "EUSD",
+      "category": "Equipment",
+      "active": true
+    },
+    "IUSD": {
+      "address": "0x798993EC1fCFbA78f8078169c65231D65A402643",
+      "name": "Inventory USD",
+      "symbol": "IUSD",
+      "category": "Inventory",
+      "active": true
+    },
+    "OUSD": {
+      "address": "0x633725f24077E61Ad9FF4abeA66BBB6058597719",
+      "name": "Other Assets USD",
+      "symbol": "OUSD",
+      "category": "Other",
+      "active": true
+    }
+  }
+}

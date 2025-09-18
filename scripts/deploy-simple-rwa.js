@@ -6,7 +6,7 @@ async function main() {
   const [deployer] = await hre.ethers.getSigners();
   const deployerAddress = await deployer.getAddress();
 
-  console.log("🚀 Deploying Standalone MultiTokenRwaBackedStablecoin to Sepolia...");
+  console.log("🚀 Deploying SimpleRwaBackedStablecoin to Sepolia...");
   console.log("🔑 Deployer address:", deployerAddress);
   
   // Check balance
@@ -29,39 +29,47 @@ async function main() {
     timestamp: new Date().toISOString(),
     contracts: {},
     gasUsed: {},
+    tokens: {}
   };
 
   try {
-    // Deploy MultiTokenRwaBackedStablecoin
-    console.log("\n📦 Deploying MultiTokenRwaBackedStablecoin contract...");
+    // Deploy SimpleRwaBackedStablecoin
+    console.log("\n📦 Deploying SimpleRwaBackedStablecoin contract...");
     
-    const MultiTokenRwaBackedStablecoin = await hre.ethers.getContractFactory("contracts/StandaloneRwaStablecoin.sol:MultiTokenRwaBackedStablecoin");
+    const SimpleRwaBackedStablecoin = await hre.ethers.getContractFactory("SimpleRwaBackedStablecoin");
     
-    console.log("⏳ Deploying contract...");
-    const rwaContract = await MultiTokenRwaBackedStablecoin.deploy(treasuryAddress, {
-      gasLimit: 8000000 // Increased gas limit for complex constructor
-    });
+    console.log("⏳ Deploying main contract...");
+    const rwaContract = await SimpleRwaBackedStablecoin.deploy(treasuryAddress);
     
     console.log("⏳ Waiting for deployment transaction...");
     await rwaContract.waitForDeployment();
     const contractAddress = await rwaContract.getAddress();
     
-    console.log("✅ MultiTokenRwaBackedStablecoin deployed to:", contractAddress);
+    console.log("✅ SimpleRwaBackedStablecoin deployed to:", contractAddress);
     
     // Get deployment receipt for gas tracking
     const deployTx = rwaContract.deploymentTransaction();
     const receipt = await deployTx.wait();
     
-    deploymentData.contracts.multiTokenRwaBackedStablecoin = contractAddress;
-    deploymentData.gasUsed.multiTokenRwaBackedStablecoin = receipt.gasUsed.toString();
+    deploymentData.contracts.simpleRwaBackedStablecoin = contractAddress;
+    deploymentData.gasUsed.simpleRwaBackedStablecoin = receipt.gasUsed.toString();
     
     console.log("⛽ Gas used for deployment:", receipt.gasUsed.toString());
     console.log("💵 Transaction hash:", receipt.hash);
     
-    // Get all deployed token addresses
-    console.log("\n🪙 Getting deployed token addresses...");
+    // Deploy all category tokens
+    console.log("\n🪙 Deploying category tokens...");
+    const deployTokensTx = await rwaContract.deployAllTokens();
     
-    // Fetch token information for each category
+    console.log("⏳ Waiting for token deployment...");
+    const tokensReceipt = await deployTokensTx.wait();
+    deploymentData.gasUsed.tokenDeployment = tokensReceipt.gasUsed.toString();
+    
+    console.log("✅ All tokens deployed! Gas used:", tokensReceipt.gasUsed.toString());
+    
+    // Get all deployed token addresses
+    console.log("\n🎯 Fetching deployed token addresses...");
+    
     const categories = [
       { id: 0, name: "RealEstate", symbol: "RUSD" },
       { id: 1, name: "Commodities", symbol: "CUSD" },
@@ -71,7 +79,6 @@ async function main() {
       { id: 5, name: "Other", symbol: "OUSD" }
     ];
     
-    deploymentData.tokens = {};
     for (const category of categories) {
       try {
         const tokenInfo = await rwaContract.categoryTokens(category.id);
@@ -80,7 +87,8 @@ async function main() {
           address: tokenAddress,
           name: tokenInfo.name,
           symbol: tokenInfo.symbol,
-          category: category.name
+          category: category.name,
+          active: tokenInfo.active
         };
         console.log(`   ${category.symbol} (${category.name}): ${tokenAddress}`);
       } catch (error) {
@@ -90,7 +98,7 @@ async function main() {
     
     // Save deployment data
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const deploymentFileName = `sepolia-rwa-deployment-${timestamp}.json`;
+    const deploymentFileName = `sepolia-simple-rwa-${timestamp}.json`;
     const deploymentsDir = path.join(process.cwd(), 'deployments');
     
     if (!fs.existsSync(deploymentsDir)) {
@@ -104,35 +112,41 @@ async function main() {
     
     console.log("\n📄 Deployment data saved to:", deploymentFileName);
     
+    // Calculate total gas used
+    const totalGasUsed = BigInt(deploymentData.gasUsed.simpleRwaBackedStablecoin) + 
+                        BigInt(deploymentData.gasUsed.tokenDeployment);
+    
     // Display summary
     console.log("\n🎉 DEPLOYMENT SUCCESSFUL!");
     console.log("=====================================");
     console.log("Network:", "Sepolia Testnet");
-    console.log("MultiTokenRwaBackedStablecoin:", contractAddress);
+    console.log("SimpleRwaBackedStablecoin:", contractAddress);
     console.log("Treasury:", treasuryAddress);
-    console.log("Transaction:", receipt.hash);
-    console.log("Total gas used:", receipt.gasUsed.toString());
+    console.log("Main contract transaction:", receipt.hash);
+    console.log("Token deployment transaction:", tokensReceipt.hash);
+    console.log("Total gas used:", totalGasUsed.toString());
     console.log("=====================================");
     
     // Display all deployed token addresses
-    console.log("\n🪙 Deployed Tokens:");
+    console.log("\n🪙 All Deployed RWA Tokens:");
     console.log("=====================================");
     Object.entries(deploymentData.tokens).forEach(([symbol, info]) => {
-      console.log(`${symbol}: ${info.address}`);
+      console.log(`${symbol}: ${info.address} (${info.name})`);
     });
     console.log("=====================================");
     
     // Verification instructions
     console.log("\n🔍 Next steps:");
-    console.log("1. Wait 1-2 minutes for contract to be indexed");
-    console.log("2. Run verification:");
+    console.log("1. Wait 1-2 minutes for contracts to be indexed");
+    console.log("2. Verify main contract:");
     console.log(`   npx hardhat verify --network sepolia ${contractAddress} "${treasuryAddress}"`);
-    console.log("3. Check on Sepolia Etherscan:");
+    console.log("3. Verify each token contract with their constructor parameters");
+    console.log("4. Check on Sepolia Etherscan:");
     console.log(`   https://sepolia.etherscan.io/address/${contractAddress}`);
     
     // Export verification command for convenience
     const verifyCommand = `npx hardhat verify --network sepolia ${contractAddress} "${treasuryAddress}"`;
-    fs.writeFileSync(path.join(deploymentsDir, 'verify-command.txt'), verifyCommand);
+    fs.writeFileSync(path.join(deploymentsDir, 'verify-main-contract.txt'), verifyCommand);
     
     return {
       contractAddress,
