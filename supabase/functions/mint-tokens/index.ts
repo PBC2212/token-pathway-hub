@@ -100,12 +100,7 @@ serve(async (req) => {
   }
 
   try {
-    // Initialize Supabase client
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    // Get authorization header
+    // Get authorization header first
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       return new Response(
@@ -113,6 +108,17 @@ serve(async (req) => {
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    // Initialize Supabase client with anon key to respect RLS policies
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: {
+        headers: {
+          Authorization: authHeader
+        }
+      }
+    });
 
     // Verify user authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser(
@@ -172,8 +178,24 @@ serve(async (req) => {
       );
     }
 
-    // MULTI-TOKEN: Determine category from DATABASE ONLY (MultiTokenRwaBackedStablecoin.sol)
-    const dbCategory = pledgeData.rwa_category || 'Other'; // Only trust DB value for category
+    // MULTI-TOKEN: Normalize and determine category from DATABASE ONLY (MultiTokenRwaBackedStablecoin.sol)
+    const rawCategory = pledgeData.rwa_category || 'Other';
+    
+    // Normalize category to handle case variations and underscores
+    const normalizeCategory = (category: string): string => {
+      const normalized = category.toLowerCase().replace(/[_\s-]/g, '');
+      const mapping: Record<string, string> = {
+        'realestate': 'RealEstate',
+        'commodities': 'Commodities', 
+        'bonds': 'Bonds',
+        'equipment': 'Equipment',
+        'inventory': 'Inventory',
+        'other': 'Other'
+      };
+      return mapping[normalized] || 'Other';
+    };
+    
+    const dbCategory = normalizeCategory(rawCategory); // Only trust DB value for category
     const categoryTokenMap: Record<string, { name: string; symbol: string; }> = {
       'RealEstate': { name: 'Real Estate USD', symbol: 'RUSD' },
       'Commodities': { name: 'Commodities USD', symbol: 'CUSD' },
@@ -183,10 +205,14 @@ serve(async (req) => {
       'Other': { name: 'Other Assets USD', symbol: 'OUSD' }
     };
     
-    // CRITICAL SECURITY: Calculate amount using ONLY database values 
-    const ltvRatio = pledgeData.ltv_ratio || 8000; // Default 80% LTV (8000 basis points)
-    const dbAppraisedValue = parseFloat(String(pledgeData.appraised_value || 0)); // Use DB value only
+    // CRITICAL SECURITY: Calculate amount using ONLY database values with proper numeric handling
+    const ltvRatio = parseInt(String(pledgeData.ltv_ratio || '8000')) || 8000; // Default 80% LTV (8000 basis points)
+    const dbAppraisedValue = parseFloat(String(pledgeData.appraised_value || '0')) || 0; // Handle Postgres numeric strings
+    const dbTokenAmount = parseFloat(String(pledgeData.token_amount || '0')) || 0; // Handle Postgres numeric strings
     const reserveRatio = 500; // 5% reserves (basis points) - matches contract
+    
+    console.log('mint-tokens: Database values - category:', rawCategory, '-> normalized:', dbCategory, 
+                'appraised_value:', dbAppraisedValue, 'ltv_ratio:', ltvRatio, 'token_amount:', dbTokenAmount);
     
     // Server-side calculation using ONLY database values (preventing client manipulation)
     const serverCalculatedAmount = Math.floor(dbAppraisedValue * (ltvRatio / 10000));
