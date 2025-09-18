@@ -323,7 +323,7 @@ abstract contract BaseAssetToken is
         uint256 assetId,
         uint256 newValue,
         string memory newAppraisalCompany
-    ) external onlyRole(COMPLIANCE_ROLE) {
+    ) public onlyRole(COMPLIANCE_ROLE) {
         if (assets[assetId].createdAt == 0) {
             revert AssetNotExists(assetId);
         }
