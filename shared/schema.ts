@@ -42,9 +42,19 @@ export const user_agreements = pgTable('user_agreements', {
   updated_at: timestamp('updated_at', { withTimezone: true }).notNull().default(sql`now()`)
 });
 
-// Smart Contract Enums for type safety
+// Multi-Token Smart Contract Enums (MultiTokenRwaBackedStablecoin.sol)
 export const pledgeStatusEnum = ['Pending', 'Verified', 'Minted', 'Rejected', 'Cancelled', 'Redeemed', 'Liquidated'] as const;
 export const rwaCategoryEnum = ['RealEstate', 'Commodities', 'Bonds', 'Equipment', 'Inventory', 'Other'] as const;
+
+// Category Token Mappings (from MultiTokenRwaBackedStablecoin.sol)
+export const categoryTokenMapping = {
+  RealEstate: { name: 'Real Estate USD', symbol: 'RUSD' },
+  Commodities: { name: 'Commodities USD', symbol: 'CUSD' },
+  Bonds: { name: 'Bonds USD', symbol: 'BUSD' },
+  Equipment: { name: 'Equipment USD', symbol: 'EUSD' },
+  Inventory: { name: 'Inventory USD', symbol: 'IUSD' },
+  Other: { name: 'Other Assets USD', symbol: 'OUSD' }
+} as const;
 
 // Pledges table - SAFELY adding smart contract fields while preserving existing structure
 export const pledges = pgTable('pledges', {
@@ -70,14 +80,19 @@ export const pledges = pgTable('pledges', {
   tx_hash: text('tx_hash'),
   token_minted: boolean('token_minted').default(false), // Keep existing field
   
-  // NEW SMART CONTRACT FIELDS - Adding without breaking existing
-  rwa_identifier: text('rwa_identifier'), // Will be populated for new pledges
-  rwa_category: text('rwa_category').default('Other'), // RwaCategory enum
-  ltv_ratio: integer('ltv_ratio').default(8000), // 80% in basis points
-  metadata: text('metadata'), // Additional RWA info
+  // MULTI-TOKEN CONTRACT FIELDS - Enhanced for category-based tokens
+  rwa_identifier: text('rwa_identifier'), // Unique asset identifier (required in new contract)
+  rwa_category: text('rwa_category').default('Other'), // RwaCategory enum -> determines token type
+  ltv_ratio: integer('ltv_ratio').default(8000), // LTV in basis points (flexible per pledge)
+  metadata: text('metadata'), // Enhanced metadata (max 1024 chars in contract)
   is_redeemable: boolean('is_redeemable').default(true),
   last_valuation_time: timestamp('last_valuation_time', { withTimezone: true }),
   verified_by_address: text('verified_by_address'), // Smart contract verifier address
+  
+  // Multi-token specific fields
+  category_token_address: text('category_token_address'), // Address of the category-specific token contract
+  category_token_symbol: text('category_token_symbol'), // Symbol of minted token (RUSD, CUSD, etc.)
+  reserve_amount: numeric('reserve_amount', { precision: 28, scale: 18 }), // Reserve portion minted to treasury
   
   created_at: timestamp('created_at', { withTimezone: true }).notNull().default(sql`now()`),
   updated_at: timestamp('updated_at', { withTimezone: true }).notNull().default(sql`now()`)
@@ -224,6 +239,34 @@ export const cognitoSubmissionsRelations = relations(cognito_submissions, ({ one
   })
 }));
 
-// Type definitions for smart contract alignment
+// Multi-token system tables
+export const category_tokens = pgTable('category_tokens', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  category: text('category').notNull().unique(), // RwaCategory enum
+  token_address: text('token_address').notNull(), // Deployed token contract address
+  token_name: text('token_name').notNull(), // e.g., "Real Estate USD"
+  token_symbol: text('token_symbol').notNull(), // e.g., "RUSD"
+  total_minted: numeric('total_minted', { precision: 28, scale: 18 }).default('0'),
+  total_reserves: numeric('total_reserves', { precision: 28, scale: 18 }).default('0'),
+  category_limit: numeric('category_limit', { precision: 28, scale: 18 }), // Max value for this category
+  category_value: numeric('category_value', { precision: 28, scale: 18 }).default('0'), // Current value
+  is_active: boolean('is_active').default(true),
+  created_at: timestamp('created_at', { withTimezone: true }).notNull().default(sql`now()`),
+  updated_at: timestamp('updated_at', { withTimezone: true }).notNull().default(sql`now()`)
+});
+
+// Enhanced token balances for multi-token system
+export const token_balances_multi = pgTable('token_balances_multi', {
+  id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  user_address: text('user_address').notNull(),
+  category: text('category').notNull(), // RwaCategory
+  token_address: text('token_address').notNull(), // Contract address
+  token_symbol: text('token_symbol').notNull(), // RUSD, CUSD, etc.
+  balance: numeric('balance', { precision: 28, scale: 18 }).notNull().default('0'),
+  updated_at: timestamp('updated_at', { withTimezone: true }).notNull().default(sql`now()`)
+});
+
+// Type definitions for multi-token smart contract alignment
 export type PledgeStatus = typeof pledgeStatusEnum[number];
 export type RwaCategory = typeof rwaCategoryEnum[number];
+export type CategoryTokenInfo = typeof categoryTokenMapping[keyof typeof categoryTokenMapping];

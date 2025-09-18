@@ -435,10 +435,6 @@ contract MultiTokenRwaBackedStablecoin is AccessControl, Pausable, ReentrancyGua
         emit LiquidationExecuted(pledgeId, msg.sender, pledge.rwaValueUSD);
     }
 
-    // View & admin functions omitted for brevity. Please refer to your original contract for full details.
-    // These include getters for pledge/token/category info, pledge/user statistics,
-    // as well as admin-only configuration functions for collateralization, treasury, limits, and rescue logic.
-
     // Emergency Pause
     function pause() external onlyRole(PAUSER_ROLE) {
         _pause();

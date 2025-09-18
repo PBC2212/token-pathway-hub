@@ -90,6 +90,7 @@ interface MintRequest {
   contractAddress?: string;
   tokenSymbol: string;
   pledgeId?: string;
+  category?: string; // RWA Category for multi-token system
 }
 
 serve(async (req) => {
@@ -127,7 +128,7 @@ serve(async (req) => {
 
     // Parse request body
     const mintRequest: MintRequest = await req.json();
-    const { address, amount, assetType, appraisedValue, tokenSymbol, pledgeId } = mintRequest;
+    const { address, amount, assetType, appraisedValue, tokenSymbol, pledgeId, category } = mintRequest;
 
     // Validate input
     if (!address || !amount || !assetType || !appraisedValue || !tokenSymbol || !pledgeId) {
@@ -171,13 +172,27 @@ serve(async (req) => {
       );
     }
 
-    // CRITICAL SECURITY: Calculate amount using ONLY database values (smart contract alignment)
+    // MULTI-TOKEN: Determine category and corresponding token (MultiTokenRwaBackedStablecoin.sol)
+    const category = pledgeData.rwa_category || 'Other'; // RWA category determines token type
+    const categoryTokenMap: Record<string, { name: string; symbol: string; }> = {
+      'RealEstate': { name: 'Real Estate USD', symbol: 'RUSD' },
+      'Commodities': { name: 'Commodities USD', symbol: 'CUSD' },
+      'Bonds': { name: 'Bonds USD', symbol: 'BUSD' },
+      'Equipment': { name: 'Equipment USD', symbol: 'EUSD' },
+      'Inventory': { name: 'Inventory USD', symbol: 'IUSD' },
+      'Other': { name: 'Other Assets USD', symbol: 'OUSD' }
+    };
+    
+    // CRITICAL SECURITY: Calculate amount using ONLY database values 
     const ltvRatio = pledgeData.ltv_ratio || 8000; // Default 80% LTV (8000 basis points)
     const dbAppraisedValue = parseFloat(String(pledgeData.appraised_value || 0)); // Use DB value only
+    const reserveRatio = 500; // 5% reserves (basis points) - matches contract
     
     // Server-side calculation using ONLY database values (preventing client manipulation)
     const serverCalculatedAmount = Math.floor(dbAppraisedValue * (ltvRatio / 10000));
-    const serverTokenSymbol = pledgeData.token_symbol || 'RWA';
+    const reserveAmount = Math.floor(serverCalculatedAmount * (reserveRatio / 10000)); // Treasury reserves
+    const categoryTokenInfo = categoryTokenMap[category] || categoryTokenMap['Other'];
+    const serverTokenSymbol = categoryTokenInfo.symbol;
     
     // Reject if client tries to manipulate amounts or symbols
     if (Math.abs(amount - serverCalculatedAmount) > 0.01 || tokenSymbol !== serverTokenSymbol) {
@@ -197,8 +212,20 @@ serve(async (req) => {
 
     console.log('Simulating token minting operation (development mode)');
     
-    // Mock Fireblocks mint transaction using server-calculated values
-    const mockTransactionId = `mock_mint_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+    // Mock category-specific token address (in real deployment, these would be actual addresses)
+    const mockCategoryTokenAddresses: Record<string, string> = {
+      'RealEstate': '0xR000000000000000000000000000000000000001', // RUSD token
+      'Commodities': '0xC000000000000000000000000000000000000002', // CUSD token
+      'Bonds': '0xB000000000000000000000000000000000000003', // BUSD token
+      'Equipment': '0xE000000000000000000000000000000000000004', // EUSD token
+      'Inventory': '0xI000000000000000000000000000000000000005', // IUSD token
+      'Other': '0x0000000000000000000000000000000000000006' // OUSD token
+    };
+    
+    const categoryTokenAddress = mockCategoryTokenAddresses[category] || mockCategoryTokenAddresses['Other'];
+    
+    // Mock MultiTokenRwaBackedStablecoin transaction using server-calculated values
+    const mockTransactionId = `mock_multitoken_mint_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
     const fireblocksResult = {
       id: mockTransactionId,
       createdAt: Date.now(),
@@ -212,7 +239,7 @@ serve(async (req) => {
       destination: {
         type: 'EXTERNAL_WALLET',
         oneTimeAddress: {
-          address: contractAddress
+          address: contractAddress // Main contract address
         }
       },
       amount: '0', // Contract call, no ETH transfer
@@ -221,17 +248,21 @@ serve(async (req) => {
       txHash: '',
       subStatus: 'PENDING_SIGNATURE',
       operation: 'CONTRACT_CALL',
-      note: `Minting ${serverCalculatedAmount} ${serverTokenSymbol} tokens for ${assetType} asset`,
+      note: `Minting ${serverCalculatedAmount} ${serverTokenSymbol} tokens for ${category} (${assetType}) asset`,
       extraParameters: {
         contractCallData: {
-          contractAddress,
-          functionName: 'mint',
+          contractAddress, // Main MultiTokenRwaBackedStablecoin contract
+          functionName: 'mintStablecoins',
           parameters: [
-            { type: 'address', value: pledgeData.user_address },
-            { type: 'uint256', value: (serverCalculatedAmount * Math.pow(10, 18)).toString() },
-            { type: 'string', value: assetType },
-            { type: 'uint256', value: dbAppraisedValue.toString() }
+            { type: 'uint256', value: pledgeData.pledge_id?.toString() || '0' } // Only pledgeId needed in new contract
           ]
+        },
+        categoryTokenMint: {
+          tokenAddress: categoryTokenAddress, // Category-specific token contract
+          tokenSymbol: serverTokenSymbol,
+          userMint: (serverCalculatedAmount * Math.pow(10, 18)).toString(),
+          treasuryReserves: (reserveAmount * Math.pow(10, 18)).toString(),
+          category: category
         }
       }
     };
@@ -308,15 +339,28 @@ serve(async (req) => {
         transactionId: fireblocksResult.id,
         pledgeId: updatedPledge.id,
         balanceResult: balanceResult,
-        message: `Successfully minted ${serverCalculatedAmount} ${serverTokenSymbol} tokens for ${assetType} asset`,
+        message: `Successfully minted ${serverCalculatedAmount} ${serverTokenSymbol} tokens for ${category} (${assetType}) asset`,
         details: {
+          // Multi-token system details
+          category: category,
+          categoryTokenAddress: categoryTokenAddress,
+          categoryTokenName: categoryTokenInfo.name,
+          tokenSymbol: serverTokenSymbol,
+          
+          // Amounts
+          userTokenAmount: serverCalculatedAmount,
+          reserveAmount: reserveAmount,
+          totalMinted: serverCalculatedAmount + reserveAmount,
+          
+          // Asset details
           assetType: assetType,
           appraisedValue: dbAppraisedValue,
-          tokenAmount: serverCalculatedAmount,
-          tokenSymbol: serverTokenSymbol,
-          ltv: `${ltvRatio/100}%`, // Dynamic LTV from database
+          ltv: `${ltvRatio/100}%`,
           ltvRatio: ltvRatio,
-          fireblocksMode: 'mock' // Indicate mock mode since no real API keys
+          
+          // System info
+          contractType: 'MultiTokenRwaBackedStablecoin',
+          fireblocksMode: 'mock'
         }
       }),
       { 
