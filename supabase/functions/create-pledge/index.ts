@@ -8,33 +8,72 @@ const corsHeaders = {
 
 interface PledgeRequest {
   user_address: string;
-  asset_type: string;
+  asset_type: string; // Legacy field for backwards compatibility
+  rwa_category: string; // New multi-token category field
+  rwa_identifier: string; // Unique asset identifier
   appraised_value: number;
-  token_symbol: string;
+  token_symbol?: string; // Optional, will be determined by category
   contract_address: string;
   description: string;
   document_hash?: string;
   appraisal_date?: string;
   appraiser_license?: string;
+  metadata?: string; // Enhanced metadata field (max 1024 chars)
+  ltv_ratio?: number; // LTV in basis points (default 8000 = 80%)
+  is_redeemable?: boolean; // Whether asset can be redeemed
 }
 
-// Asset type mapping between frontend strings and smart contract enums
-const ASSET_TYPE_MAPPING: Record<string, number> = {
-  'real_estate': 0,    // AssetType.RealEstate
-  'gold': 1,           // AssetType.Gold
-  'vehicle': 2,        // AssetType.Vehicle
-  'art': 3,            // AssetType.Art
-  'equipment': 4,      // AssetType.Equipment
-  'commodity': 5       // AssetType.Commodity
+// MultiToken RWA Category mapping aligned with MultiTokenRwaBackedStablecoin.sol
+const RWA_CATEGORY_MAPPING: Record<string, number> = {
+  'RealEstate': 0,    // RwaCategory.RealEstate
+  'Commodities': 1,   // RwaCategory.Commodities  
+  'Bonds': 2,         // RwaCategory.Bonds
+  'Equipment': 3,     // RwaCategory.Equipment
+  'Inventory': 4,     // RwaCategory.Inventory
+  'Other': 5          // RwaCategory.Other
 };
 
-// Status mapping between contract enums and database strings
-const STATUS_FROM_CONTRACT: Record<number, string> = {
-  0: 'pending',    // PledgeStatus.Pending
-  1: 'approved',   // PledgeStatus.Approved
-  2: 'rejected',   // PledgeStatus.Rejected
-  3: 'redeemed',   // PledgeStatus.Redeemed
-  4: 'defaulted'   // PledgeStatus.Defaulted
+// Category Token Mapping (from MultiTokenRwaBackedStablecoin.sol)
+const CATEGORY_TOKEN_MAPPING: Record<string, { name: string; symbol: string }> = {
+  'RealEstate': { name: 'Real Estate USD', symbol: 'RUSD' },
+  'Commodities': { name: 'Commodities USD', symbol: 'CUSD' },
+  'Bonds': { name: 'Bonds USD', symbol: 'BUSD' },
+  'Equipment': { name: 'Equipment USD', symbol: 'EUSD' },
+  'Inventory': { name: 'Inventory USD', symbol: 'IUSD' },
+  'Other': { name: 'Other Assets USD', symbol: 'OUSD' }
+};
+
+// Legacy asset type to RWA category mapping for backwards compatibility
+const LEGACY_ASSET_TYPE_TO_RWA_CATEGORY: Record<string, string> = {
+  'real_estate': 'RealEstate',
+  'gold': 'Commodities',
+  'commodity': 'Commodities', 
+  'vehicle': 'Equipment',
+  'art': 'Other',
+  'equipment': 'Equipment',
+  'inventory': 'Inventory',
+  'bonds': 'Bonds'
+};
+
+// Reverse mapping: RWA category to legacy asset type for proper backwards compatibility
+const RWA_CATEGORY_TO_LEGACY_ASSET_TYPE: Record<string, string> = {
+  'RealEstate': 'real_estate',
+  'Commodities': 'commodity',
+  'Bonds': 'bonds',
+  'Equipment': 'equipment',
+  'Inventory': 'inventory',
+  'Other': 'other'
+};
+
+// PledgeStatus mapping aligned with MultiTokenRwaBackedStablecoin.sol
+const PLEDGE_STATUS_FROM_CONTRACT: Record<number, string> = {
+  0: 'pending',     // PledgeStatus.Pending
+  1: 'verified',    // PledgeStatus.Verified
+  2: 'minted',      // PledgeStatus.Minted
+  3: 'rejected',    // PledgeStatus.Rejected
+  4: 'cancelled',   // PledgeStatus.Cancelled
+  5: 'redeemed',    // PledgeStatus.Redeemed
+  6: 'liquidated'   // PledgeStatus.Liquidated
 };
 
 serve(async (req) => {
@@ -50,14 +89,46 @@ serve(async (req) => {
 
     const pledgeData: PledgeRequest = await req.json()
 
+    // Normalize and determine RWA category (prioritize new field, fallback to legacy)
+    let rwaCategory = pledgeData.rwa_category;
+    
+    // Normalize RWA category input (case-insensitive, underscore handling)
+    if (rwaCategory) {
+      const normalizedInput = rwaCategory.trim().toLowerCase().replace(/_/g, '');
+      const categoryMap: Record<string, string> = {
+        'realestate': 'RealEstate',
+        'commodities': 'Commodities',
+        'bonds': 'Bonds',
+        'equipment': 'Equipment',
+        'inventory': 'Inventory',
+        'other': 'Other'
+      };
+      rwaCategory = categoryMap[normalizedInput] || rwaCategory; // Keep original if no match
+    }
+    
+    if (!rwaCategory && pledgeData.asset_type) {
+      // Map legacy asset_type to RWA category
+      rwaCategory = LEGACY_ASSET_TYPE_TO_RWA_CATEGORY[pledgeData.asset_type] || 'Other';
+    }
+    
     // Validation
-    if (!pledgeData.user_address || !pledgeData.asset_type || !pledgeData.appraised_value) {
-      throw new Error('Missing required fields: user_address, asset_type, appraised_value')
+    if (!pledgeData.user_address || !pledgeData.appraised_value || !rwaCategory) {
+      throw new Error('Missing required fields: user_address, appraised_value, rwa_category (or legacy asset_type)')
     }
 
-    // Validate asset type exists in our mapping
-    if (!(pledgeData.asset_type in ASSET_TYPE_MAPPING)) {
-      throw new Error(`Invalid asset type: ${pledgeData.asset_type}. Valid types: ${Object.keys(ASSET_TYPE_MAPPING).join(', ')}`)
+    // Validate RWA identifier is provided
+    if (!pledgeData.rwa_identifier || pledgeData.rwa_identifier.trim().length === 0) {
+      throw new Error('rwa_identifier is required and must be non-empty')
+    }
+
+    // Validate RWA identifier length (contract limit: 256 chars)
+    if (pledgeData.rwa_identifier.length > 256) {
+      throw new Error('rwa_identifier must be 256 characters or less')
+    }
+
+    // Validate RWA category exists in our mapping
+    if (!(rwaCategory in RWA_CATEGORY_MAPPING)) {
+      throw new Error(`Invalid RWA category: ${rwaCategory}. Valid categories: ${Object.keys(RWA_CATEGORY_MAPPING).join(', ')}`)
     }
 
     // Validate wallet address format
@@ -65,10 +136,30 @@ serve(async (req) => {
       throw new Error('Invalid Ethereum wallet address format')
     }
 
-    // Validate appraised value
+    // Validate appraised value (aligned with contract MIN_RWA_VALUE = $1,000)
     if (pledgeData.appraised_value < 1000) {
       throw new Error('Minimum appraised value is $1,000')
     }
+    
+    // Validate appraised value (aligned with contract MAX_RWA_VALUE = $100M)
+    if (pledgeData.appraised_value > 100_000_000) {
+      throw new Error('Maximum appraised value is $100,000,000')
+    }
+
+    // Validate metadata length (contract limit: 1024 chars)
+    if (pledgeData.metadata && pledgeData.metadata.length > 1024) {
+      throw new Error('metadata must be 1024 characters or less')
+    }
+
+    // Validate LTV ratio (basis points: 0-10000)
+    const ltvRatio = pledgeData.ltv_ratio || 8000; // Default 80%
+    if (ltvRatio < 0 || ltvRatio > 10000) {
+      throw new Error('ltv_ratio must be between 0 and 10000 basis points (0% - 100%)')
+    }
+
+    // Get category token symbol
+    const categoryTokenInfo = CATEGORY_TOKEN_MAPPING[rwaCategory];
+    const categoryTokenSymbol = categoryTokenInfo.symbol;
 
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) {
@@ -100,27 +191,32 @@ serve(async (req) => {
       console.log('Blockchain integration enabled - preparing smart contract call...');
       
       try {
-        // Convert asset type to contract enum
-        const contractAssetType = ASSET_TYPE_MAPPING[pledgeData.asset_type];
+        // Convert RWA category to contract enum
+        const contractRwaCategory = RWA_CATEGORY_MAPPING[rwaCategory];
         
         // Convert USD to wei (18 decimals)
         const appraisedValueWei = BigInt(Math.floor(pledgeData.appraised_value * 1e6)) * BigInt(1e12); // Avoid floating point issues
         
-        // Prepare asset metadata for smart contract
-        const assetMetadata = {
+        // Prepare enhanced metadata for smart contract (max 1024 chars)
+        const enhancedMetadata = pledgeData.metadata || JSON.stringify({
           description: pledgeData.description || '',
-          documentHash: pledgeData.document_hash || '0x0000000000000000000000000000000000000000000000000000000000000000',
+          documentHash: pledgeData.document_hash || '',
           appraisalDate: pledgeData.appraisal_date || new Date().toISOString().split('T')[0],
-          appraiserLicense: pledgeData.appraiser_license || ''
-        };
+          appraiserLicense: pledgeData.appraiser_license || '',
+          assetType: pledgeData.asset_type || rwaCategory.toLowerCase()
+        }).substring(0, 1024); // Ensure contract limit compliance
 
-        // TODO: Implement actual smart contract call via Fireblocks
-        // This would call your PledgeEscrow.createPledge() function
-        console.log('Smart contract call parameters:', {
+        // TODO: Implement actual MultiTokenRwaBackedStablecoin smart contract call via Fireblocks
+        // This would call MultiTokenRwaBackedStablecoin.submitPledge() function
+        console.log('MultiToken smart contract call parameters:', {
           contractAddress: pledgeData.contract_address,
-          assetType: contractAssetType,
-          appraisedValue: appraisedValueWei.toString(),
-          metadata: assetMetadata
+          rwaIdentifier: pledgeData.rwa_identifier,
+          pledger: pledgeData.user_address,
+          rwaCategory: contractRwaCategory,
+          rwaValueUSD: appraisedValueWei.toString(),
+          metadata: enhancedMetadata,
+          ltv: ltvRatio,
+          isRedeemable: pledgeData.is_redeemable !== false
         });
 
         // For now, simulate smart contract response
@@ -144,26 +240,43 @@ serve(async (req) => {
     // Generate fallback pledge ID if no blockchain ID
     const pledgeId = blockchainPledgeId || (Math.floor(Date.now() / 1000) + Math.floor(Math.random() * 1000));
 
-    // Prepare database record with all required fields - INCLUDING pledge_id
+    // Prepare database record with all multi-token fields
     const pledgeRecord = {
-      pledge_id: pledgeId,  // FIXED: Add the missing pledge_id field
+      pledge_id: pledgeId,
       user_id: user.id,
       user_address: pledgeData.user_address,
-      asset_type: pledgeData.asset_type, // Store frontend string value
-      asset_type_contract_id: ASSET_TYPE_MAPPING[pledgeData.asset_type], // Store contract enum
+      
+      // Legacy fields (for backwards compatibility) - preserve proper legacy values
+      asset_type: pledgeData.asset_type || RWA_CATEGORY_TO_LEGACY_ASSET_TYPE[rwaCategory] || 'other',
+      
+      // Multi-token contract fields (aligned with MultiTokenRwaBackedStablecoin.sol)
+      rwa_identifier: pledgeData.rwa_identifier,
+      rwa_category: rwaCategory,
+      ltv_ratio: ltvRatio,
+      metadata: pledgeData.metadata || JSON.stringify({
+        description: pledgeData.description || '',
+        documentHash: pledgeData.document_hash || '',
+        appraisalDate: pledgeData.appraisal_date || new Date().toISOString().split('T')[0],
+        appraiserLicense: pledgeData.appraiser_license || ''
+      }),
+      is_redeemable: pledgeData.is_redeemable !== false, // Default true
+      
+      // Core pledge fields
       appraised_value: pledgeData.appraised_value,
-      token_amount: 0, // Will be set during approval process
-      token_symbol: pledgeData.token_symbol || `${pledgeData.asset_type.toUpperCase().substring(0,3)}${pledgeId}`,
+      token_amount: 0, // Will be calculated during approval based on LTV
+      token_symbol: pledgeData.token_symbol || categoryTokenSymbol, // Use category token symbol
+      category_token_symbol: categoryTokenSymbol, // Store category-specific symbol
       contract_address: pledgeData.contract_address || '',
       description: pledgeData.description || '',
       document_hash: pledgeData.document_hash || '',
       appraisal_date: pledgeData.appraisal_date || new Date().toISOString().split('T')[0],
       appraiser_license: pledgeData.appraiser_license || '',
-      status: 'pending',
-      blockchain_pledge_id: blockchainPledgeId,
-      blockchain_tx_hash: blockchainTxHash,
-      blockchain_enabled: isBlockchainEnabled,
-      nft_token_id: nftTokenId
+      status: 'pending', // PledgeStatus.Pending in contract
+      
+      // Blockchain integration fields
+      tx_hash: blockchainTxHash,
+      nft_token_id: nftTokenId,
+      last_valuation_time: new Date().toISOString()
     };
 
     // Insert into database
