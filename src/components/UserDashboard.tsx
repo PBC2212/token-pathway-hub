@@ -2,16 +2,17 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Wallet, FileText, Coins, TrendingUp } from 'lucide-react';
+import { Wallet, FileText, Coins, TrendingUp, Building, Gem, FileText as FileTextIcon, Wrench, Package, Archive } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
 interface Pledge {
   id: string;
   pledge_id?: number;
+  user_id: string;
   user_address: string;
   asset_type: string;
-  appraised_value: number;
+  appraised_value: number; // Normalized to number
   token_symbol?: string;
   contract_address?: string;
   description?: string;
@@ -22,18 +23,63 @@ interface Pledge {
   created_at: string;
   approved_at?: string;
   approved_by?: string;
-  token_amount?: number;
+  token_amount?: number; // Normalized to number
   nft_token_id?: number;
   admin_notes?: string;
   rejection_reason?: string;
   updated_at?: string;
   tx_hash?: string;
+  // Multi-token fields
+  rwa_category?: string;
+  category_token_symbol?: string;
+  ltv_ratio?: number; // Add missing field for TS compatibility
+  is_redeemable?: boolean;
 }
 
 interface TokenBalance {
   token_symbol: string;
   balance: number;
+  category?: string;
+  token_name?: string;
+  updated_at?: string;
 }
+
+// Category helpers for multi-token system
+const getCategoryIcon = (tokenSymbol: string) => {
+  switch (tokenSymbol) {
+    case 'RUSD': return Building;
+    case 'CUSD': return Gem;
+    case 'BUSD': return FileTextIcon;
+    case 'EUSD': return Wrench;
+    case 'IUSD': return Package;
+    case 'OUSD': return Archive;
+    default: return Coins;
+  }
+};
+
+const getCategoryName = (tokenSymbol: string) => {
+  switch (tokenSymbol) {
+    case 'RUSD': return 'Real Estate';
+    case 'CUSD': return 'Commodities';
+    case 'BUSD': return 'Bonds';
+    case 'EUSD': return 'Equipment';
+    case 'IUSD': return 'Inventory';
+    case 'OUSD': return 'Other Assets';
+    default: return 'Unknown';
+  }
+};
+
+const getCategoryColor = (tokenSymbol: string) => {
+  switch (tokenSymbol) {
+    case 'RUSD': return 'bg-blue-100 text-blue-800 border-blue-200';
+    case 'CUSD': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+    case 'BUSD': return 'bg-green-100 text-green-800 border-green-200';
+    case 'EUSD': return 'bg-purple-100 text-purple-800 border-purple-200';
+    case 'IUSD': return 'bg-orange-100 text-orange-800 border-orange-200';
+    case 'OUSD': return 'bg-gray-100 text-gray-800 border-gray-200';
+    default: return 'bg-gray-100 text-gray-800 border-gray-200';
+  }
+};
 
 const UserDashboard = () => {
   const [pledges, setPledges] = useState<Pledge[]>([]);
@@ -57,25 +103,61 @@ const UserDashboard = () => {
         throw new Error('Not authenticated');
       }
 
-      // Fetch pledges - use user_id if available, fallback to user_address
+      // Declare normalizedPledges outside the block for proper scoping
+      let normalizedPledges: Pledge[] = [];
+
+      // Fetch pledges using correct user_id field
       const { data: pledgesData, error: pledgesError } = await supabase
         .from('pledges')
         .select('*')
-        .eq('user_address', session.session.user.id)
+        .eq('user_id', session.session.user.id)
         .order('created_at', { ascending: false });
 
       if (pledgesError) {
         console.error('Error fetching pledges:', pledgesError);
         setPledges([]);
       } else {
-        setPledges(pledgesData || []);
+        // Convert numeric strings to numbers for proper handling
+        normalizedPledges = pledgesData?.map(pledge => ({
+          ...pledge,
+          appraised_value: parseFloat(pledge.appraised_value?.toString() || '0') || 0,
+          token_amount: parseFloat(pledge.token_amount?.toString() || '0') || 0,
+          ltv_ratio: parseInt(pledge.ltv_ratio?.toString() || '8000') || 8000
+        })) || [];
+        setPledges(normalizedPledges);
       }
 
-      // Fetch token balances
-      const { data: balancesData, error: balancesError } = await supabase
-        .from('token_balances')
-        .select('*')
-        .eq('user_address', session.session.user.id);
+      // Get user's wallet address from profile first, then fetch token balances
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('wallet_address')
+        .eq('user_id', session.session.user.id)
+        .single();
+      
+      let balancesData = [];
+      let balancesError = null;
+      
+      if (profileData?.wallet_address) {
+        const { data, error } = await supabase
+          .from('token_balances')
+          .select('*')
+          .eq('user_address', profileData.wallet_address);
+        
+        // Convert balance strings to numbers for proper calculations
+        balancesData = data?.map(balance => ({
+          ...balance,
+          balance: parseFloat(balance.balance?.toString() || '0')
+        })) || [];
+        balancesError = error;
+      } else {
+        // Handle missing wallet address gracefully with user feedback
+        console.warn('No wallet address found for user. Token balances unavailable.');
+        toast({
+          variant: "destructive",
+          title: "Wallet Address Missing",
+          description: "Please add your wallet address to your profile to view token balances.",
+        });
+      }
 
       if (balancesError) {
         console.error('Error fetching token balances:', balancesError);
@@ -84,10 +166,10 @@ const UserDashboard = () => {
         setTokenBalances(balancesData || []);
       }
 
-      // Calculate stats
-      const totalPledges = pledgesData?.length || 0;
-      const approvedPledges = pledgesData?.filter(p => p.status === 'approved').length || 0;
-      const totalValue = pledgesData?.reduce((sum, p) => sum + (p.appraised_value || 0), 0) || 0;
+      // Calculate stats using normalized data for correct numeric calculations
+      const totalPledges = normalizedPledges?.length || 0;
+      const approvedPledges = normalizedPledges?.filter(p => p.status === 'approved').length || 0;
+      const totalValue = normalizedPledges?.reduce((sum, p) => sum + (p.appraised_value || 0), 0) || 0;
       const tokenBalance = balancesData?.reduce((sum, b) => sum + (b.balance || 0), 0) || 0;
 
       setStats({
@@ -253,29 +335,82 @@ const UserDashboard = () => {
         </CardContent>
       </Card>
 
-      {/* Token Balances */}
+      {/* Multi-Token Balances */}
       {tokenBalances.length > 0 && (
         <Card className="mt-8">
           <CardHeader>
-            <CardTitle>Token Balances</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Coins className="h-5 w-5" />
+              Multi-Token Portfolio
+              <Badge variant="outline" className="text-xs">Category-Based</Badge>
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Token Symbol</TableHead>
-                  <TableHead>Balance</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {tokenBalances.map((balance, index) => (
-                  <TableRow key={index}>
-                    <TableCell className="font-medium">{balance.token_symbol}</TableCell>
-                    <TableCell>{balance.balance.toFixed(6)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {tokenBalances.map((balance, index) => {
+                const CategoryIcon = getCategoryIcon(balance.token_symbol);
+                const categoryName = getCategoryName(balance.token_symbol);
+                const colorClass = getCategoryColor(balance.token_symbol);
+                
+                return (
+                  <Card key={index} className="border-l-4 border-l-blue-500">
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <CategoryIcon className="h-5 w-5 text-blue-600" />
+                          <Badge className={colorClass + ' text-xs font-mono'}>
+                            {balance.token_symbol}
+                          </Badge>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-2xl font-bold text-green-600">
+                            {balance.balance.toFixed(2)}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {balance.token_symbol}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Category:</span>
+                          <span className="font-medium">{categoryName}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">USD Value:</span>
+                          <span className="font-medium text-green-600">
+                            ${balance.balance.toFixed(2)}
+                          </span>
+                        </div>
+                        {balance.updated_at && (
+                          <div className="text-xs text-muted-foreground mt-2">
+                            Updated: {formatDate(balance.updated_at)}
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+            
+            {/* Total Portfolio Value */}
+            <div className="mt-6 p-4 bg-muted rounded-lg">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5 text-green-600" />
+                  <span className="font-semibold">Total Portfolio Value</span>
+                </div>
+                <div className="text-right">
+                  <div className="text-2xl font-bold text-green-600">
+                    ${tokenBalances.reduce((sum, balance) => sum + balance.balance, 0).toFixed(2)}
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    Across {tokenBalances.length} token{tokenBalances.length !== 1 ? 's' : ''}
+                  </div>
+                </div>
+              </div>
+            </div>
           </CardContent>
         </Card>
       )}

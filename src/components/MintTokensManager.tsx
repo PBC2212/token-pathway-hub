@@ -5,18 +5,61 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { Coins, RefreshCw, Loader2 } from 'lucide-react';
+import { Coins, RefreshCw, Loader2, Building, Gem, FileText, Wrench, Package, Archive } from 'lucide-react';
+
+// Category icon mapping for multi-token system
+const getCategoryIcon = (category: string) => {
+  switch (category) {
+    case 'RealEstate': return Building;
+    case 'Commodities': return Gem;
+    case 'Bonds': return FileText;
+    case 'Equipment': return Wrench;
+    case 'Inventory': return Package;
+    case 'Other': return Archive;
+    default: return Coins;
+  }
+};
+
+const getCategoryColor = (category: string) => {
+  switch (category) {
+    case 'RealEstate': return 'bg-blue-100 text-blue-800';
+    case 'Commodities': return 'bg-yellow-100 text-yellow-800';
+    case 'Bonds': return 'bg-green-100 text-green-800';
+    case 'Equipment': return 'bg-purple-100 text-purple-800';
+    case 'Inventory': return 'bg-orange-100 text-orange-800';
+    case 'Other': return 'bg-gray-100 text-gray-800';
+    default: return 'bg-gray-100 text-gray-800';
+  }
+};
+
+const getCategoryTokenName = (category: string) => {
+  switch (category) {
+    case 'RealEstate': return 'Real Estate USD';
+    case 'Commodities': return 'Commodities USD';
+    case 'Bonds': return 'Bonds USD';
+    case 'Equipment': return 'Equipment USD';
+    case 'Inventory': return 'Inventory USD';
+    case 'Other': return 'Other Assets USD';
+    default: return 'Other Assets USD';
+  }
+};
 
 interface PledgeData {
   id: string;
   user_id: string;
   user_address: string;
   asset_type: string;
-  appraised_value: number;
+  appraised_value: number; // Normalized to number
   token_symbol: string | null;
   status: string;
   token_minted: boolean;
   created_at: string;
+  // Multi-token fields
+  rwa_category?: string;
+  category_token_symbol?: string;
+  ltv_ratio?: number; // Normalized to number
+  is_redeemable?: boolean;
+  token_amount?: number; // Normalized to number
 }
 
 const MintTokensManager = () => {
@@ -31,21 +74,33 @@ const MintTokensManager = () => {
     try {
       setLoading(true);
       
-      // Use manual query to avoid TypeScript issues
-      const response = await fetch(`https://fdbcuegidxvdanpoqztv.supabase.co/rest/v1/pledges?user_id=eq.${user.id}&status=eq.approved&token_minted=eq.false&order=created_at.desc`, {
-        headers: {
-          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZkYmN1ZWdpZHh2ZGFucG9xenR2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc1MjkwNjgsImV4cCI6MjA3MzEwNTA2OH0.SWYPRoeCcQdPLhmsujoN4dWouSWUwD3PtFMo4dzmNMU',
-          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      // Use Supabase client for proper typing and consistency
+      const { data, error } = await supabase
+        .from('pledges')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('status', 'approved')
+        .eq('token_minted', false)
+        .order('created_at', { ascending: false });
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch pledges');
+      if (error) {
+        throw new Error(`Failed to fetch pledges: ${error.message}`);
       }
 
-      const data = await response.json();
-      setApprovedPledges(data as PledgeData[]);
+      // Transform data to match PledgeData interface and normalize numeric fields
+      const transformedData = data?.map(pledge => ({
+        ...pledge,
+        token_minted: pledge.token_minted ?? false,
+        rwa_category: pledge.rwa_category || 'Other',
+        category_token_symbol: pledge.category_token_symbol || pledge.token_symbol,
+        ltv_ratio: parseInt(pledge.ltv_ratio?.toString() || '8000'),
+        is_redeemable: pledge.is_redeemable ?? true,
+        // Convert numeric strings to numbers for calculations
+        appraised_value: parseFloat(pledge.appraised_value?.toString() || '0'),
+        token_amount: parseFloat(pledge.token_amount?.toString() || '0')
+      })) as PledgeData[] || [];
+      
+      setApprovedPledges(transformedData);
       
     } catch (error) {
       console.error('Error fetching pledges:', error);
@@ -63,14 +118,20 @@ const MintTokensManager = () => {
     try {
       setMinting(pledge.id);
       
+      // Calculate amount using database LTV ratio for security
+      const ltvRatio = pledge.ltv_ratio || 8000; // Default 80% LTV in basis points
+      const calculatedAmount = Math.floor(pledge.appraised_value * (ltvRatio / 10000));
+      const categoryToken = pledge.category_token_symbol || pledge.token_symbol || 'OUSD';
+      
       const { data, error } = await supabase.functions.invoke('mint-tokens', {
         body: {
           pledgeId: pledge.id,
           address: pledge.user_address,
-          amount: Math.floor(pledge.appraised_value * 0.8), // 80% LTV
+          amount: calculatedAmount,
           assetType: pledge.asset_type,
-          tokenSymbol: pledge.token_symbol || 'RWA',
-          appraisedValue: pledge.appraised_value
+          tokenSymbol: categoryToken,
+          appraisedValue: pledge.appraised_value,
+          category: pledge.rwa_category || 'Other'
         }
       });
 
@@ -123,7 +184,8 @@ const MintTokensManager = () => {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Coins className="h-6 w-6 text-primary" />
-          <h2 className="text-2xl font-bold">Mint Tokens</h2>
+          <h2 className="text-2xl font-bold">Mint Category Tokens</h2>
+          <Badge variant="outline" className="text-xs">Multi-Token System</Badge>
         </div>
         <Button onClick={fetchApprovedPledges} disabled={loading} variant="outline">
           <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
@@ -150,17 +212,40 @@ const MintTokensManager = () => {
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <span className="font-medium">Asset Type:</span> {pledge.asset_type}
+                  <span className="font-medium">Asset Category:</span> 
+                  <div className="flex items-center gap-2 mt-1">
+                    {(() => {
+                      const category = pledge.rwa_category || 'Other';
+                      const CategoryIcon = getCategoryIcon(category);
+                      return (
+                        <>
+                          <Badge className={getCategoryColor(category) + ' text-xs'}>
+                            <CategoryIcon className="h-3 w-3 mr-1" />
+                            {category.replace(/([A-Z])/g, ' $1').trim()}
+                          </Badge>
+                        </>
+                      );
+                    })()}
+                  </div>
                 </div>
                 <div>
-                  <span className="font-medium">Token Symbol:</span> {pledge.token_symbol || 'RWA'}
+                  <span className="font-medium">Token Type:</span> 
+                  <div className="font-mono text-blue-600 mt-1">
+                    {pledge.category_token_symbol || pledge.token_symbol || 'OUSD'}
+                  </div>
                 </div>
                 <div>
-                  <span className="font-medium">LTV Ratio:</span> 80%
+                  <span className="font-medium">LTV Ratio:</span> 
+                  <div className="text-green-600 mt-1">
+                    {((pledge.ltv_ratio || 8000) / 100).toFixed(0)}%
+                  </div>
                 </div>
                 <div>
-                  <span className="font-medium">Mint Amount:</span> 
-                  ${Math.floor((pledge.appraised_value || 0) * 0.8).toLocaleString()}
+                  <span className="font-medium">Mintable Amount:</span> 
+                  <div className="text-green-600 font-bold mt-1">
+                    ${Math.floor((pledge.appraised_value || 0) * ((pledge.ltv_ratio || 8000) / 10000)).toLocaleString()} 
+                    <span className="ml-1 font-mono text-sm">{pledge.category_token_symbol || pledge.token_symbol || 'OUSD'}</span>
+                  </div>
                 </div>
               </div>
               
@@ -173,13 +258,20 @@ const MintTokensManager = () => {
                 {minting === pledge.id ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Minting Tokens...
+                    Minting {pledge.category_token_symbol || pledge.token_symbol || 'OUSD'}...
                   </>
                 ) : (
-                  <>
-                    <Coins className="h-4 w-4 mr-2" />
-                    Mint Tokens
-                  </>
+                  (() => {
+                    const category = pledge.rwa_category || 'Other';
+                    const CategoryIcon = getCategoryIcon(category);
+                    const tokenSymbol = pledge.category_token_symbol || pledge.token_symbol || 'OUSD';
+                    return (
+                      <>
+                        <CategoryIcon className="h-4 w-4 mr-2" />
+                        Mint {tokenSymbol} Tokens
+                      </>
+                    );
+                  })()
                 )}
               </Button>
             </CardContent>
