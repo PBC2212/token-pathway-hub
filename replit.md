@@ -22,10 +22,18 @@ Preferred communication style: Simple, everyday language.
 - **Smart Contracts**: Hardhat development environment with OpenZeppelin contracts for ERC20 tokens and upgradeable patterns
 
 ## Multi-Token Smart Contract System
-- **Core Contract**: MultiTokenRwaBackedStablecoin.sol supporting multiple asset categories (RealEstate, Commodities, Bonds, Equipment, Inventory, Other)
+- **Core Contract**: SimpleRwaBackedStablecoin.sol deployed to Sepolia testnet at 0x7a408cadbC99EE39A0E01f4Cdb10139601163407
 - **Category Tokens**: Each asset type maps to specific USD-backed tokens (RUSD, CUSD, BUSD, EUSD, IUSD, OUSD)
 - **Factory Pattern**: Automated deployment and management of asset-specific token contracts
 - **Pledge System**: NFT-based pledge verification with escrow functionality
+- **Deployment Status**: Successfully deployed September 18, 2025 with full Etherscan verification
+- **Live Token Addresses**:
+  - RUSD (Real Estate): 0x1297F2046FcC526A96a8667E972B009e55f8a845
+  - CUSD (Commodities): 0x838d4B07d2A8b14Ce631808E911a51D537c462E7
+  - BUSD (Bonds): 0x85635cd6c1Aa4143b263612448941E343DA296e3
+  - EUSD (Equipment): 0x2FdF5CaFcE00Ed5663a9ade6914F672d9A055292
+  - IUSD (Inventory): 0x798993EC1fCFbA78f8078169c65231D65A402643
+  - OUSD (Other): 0x633725f24077E61Ad9FF4abeA66BBB6058597719
 
 ## Data Storage Solutions
 - **Primary Database**: PostgreSQL with structured tables for profiles, pledges, agreements, and audit logs
