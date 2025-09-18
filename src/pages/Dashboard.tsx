@@ -97,8 +97,44 @@ const Dashboard = () => {
         return;
       }
 
+      // Find the pledge in our current data to get required fields
+      const pledge = pledgeData?.pledges?.find(p => p.id === pledgeId);
+      if (!pledge) {
+        toast({
+          title: 'Pledge Not Found',
+          description: 'Could not find pledge data for minting',
+          variant: 'destructive'
+        });
+        return;
+      }
+
+      // Category token mapping for symbol determination
+      const categoryTokenMap: Record<string, { symbol: string }> = {
+        'RealEstate': { symbol: 'RUSD' },
+        'Commodities': { symbol: 'CUSD' },
+        'Bonds': { symbol: 'BUSD' },
+        'Equipment': { symbol: 'EUSD' },
+        'Inventory': { symbol: 'IUSD' },
+        'Other': { symbol: 'OUSD' }
+      };
+
+      const normalizedCategory = (pledge as any).rwa_category || 'Other';
+      const tokenInfo = categoryTokenMap[normalizedCategory] || categoryTokenMap['Other'];
+
+      // Calculate token amount based on LTV ratio
+      const appraisedValue = parseFloat((pledge as any).appraised_value?.toString() || '0');
+      const ltvRatio = parseInt((pledge as any).ltv_ratio?.toString() || '8000'); // Default 80%
+      const tokenAmount = appraisedValue * (ltvRatio / 10000);
+
       const { data, error } = await supabase.functions.invoke('mint-tokens', {
-        body: { pledgeId },
+        body: {
+          pledgeId,
+          address: (pledge as any).user_address || user?.user_metadata?.wallet_address || '0x1234567890123456789012345678901234567890',
+          amount: tokenAmount,
+          assetType: pledge.asset_type || normalizedCategory,
+          appraisedValue,
+          tokenSymbol: tokenInfo.symbol
+        },
         headers: {
           Authorization: `Bearer ${session.session.access_token}`
         }
@@ -109,7 +145,7 @@ const Dashboard = () => {
       if (data?.success) {
         toast({
           title: 'Tokens Minted Successfully',
-          description: 'Your tokens have been minted',
+          description: `Minted ${tokenAmount.toFixed(2)} ${tokenInfo.symbol} tokens`,
         });
         await fetchPledges();
       }
