@@ -198,24 +198,31 @@ const Dashboard = () => {
 
   const fetchUserProfile = async () => {
     try {
-      const { data: profileData, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', user.id)
-        .single();
+      // SECURITY FIX: Use secure edge function instead of direct database query
+      const { data: session } = await supabase.auth.getSession();
+      if (!session.session?.access_token) {
+        throw new Error('Not authenticated');
+      }
 
-      if (error) {
-        console.error('Error fetching profile:', error);
+      const { data: response, error } = await supabase.functions.invoke('get-user-profile', {
+        body: { operation: 'get_profile' },
+        headers: {
+          Authorization: `Bearer ${session.session.access_token}`
+        }
+      });
+
+      if (error || !response.success) {
+        console.error('Error fetching profile:', error || response.error);
         toast({
           title: "Profile Error",
           description: "Could not load your profile information.",
           variant: "destructive",
         });
       } else {
-        setProfile(profileData);
+        setProfile(response.profile);
         setFormData({
-          full_name: profileData.full_name || '',
-          email: profileData.email || ''
+          full_name: response.profile.full_name || '',
+          email: response.profile.email || ''
         });
       }
     } catch (error: any) {
@@ -267,14 +274,25 @@ const Dashboard = () => {
   const handleSaveProfile = async () => {
     setSaving(true);
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          full_name: formData.full_name,
-        })
-        .eq('user_id', user?.id);
+      // SECURITY FIX: Use secure edge function instead of direct database query
+      const { data: session } = await supabase.auth.getSession();
+      if (!session.session?.access_token) {
+        throw new Error('Not authenticated');
+      }
 
-      if (error) throw error;
+      const { data: response, error } = await supabase.functions.invoke('get-user-profile', {
+        body: { 
+          operation: 'update_profile',
+          full_name: formData.full_name 
+        },
+        headers: {
+          Authorization: `Bearer ${session.session.access_token}`
+        }
+      });
+
+      if (error || !response.success) {
+        throw new Error(error?.message || response.error || 'Failed to update profile');
+      }
 
       toast({
         title: "Success",
@@ -282,11 +300,11 @@ const Dashboard = () => {
       });
 
       await fetchUserProfile();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating profile:', error);
       toast({
         title: "Error",
-        description: "Failed to update profile",
+        description: error.message || "Failed to update profile",
         variant: "destructive",
       });
     } finally {
