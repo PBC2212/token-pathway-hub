@@ -99,13 +99,28 @@ Deno.serve(async (req) => {
       // GET request or no body - that's fine
     }
 
-    // Get pledges from Supabase with explicit user filtering for security
-    // Double-check user scoping even with RLS enabled
+    // Get pledges with explicit user filtering for security
+    // RLS policies provide primary security, this is defense-in-depth
     const { data: pledges, error: pledgeError } = await supabase
       .from('pledges')
       .select('*')
-      .eq('user_id', user.id) // Explicit user filtering for security
+      .eq('user_id', user.id) // Only filter by user_id - correct field
       .order('created_at', { ascending: false });
+      
+    // SECURITY VALIDATION: Final check all returned data belongs to requesting user
+    if (pledges) {
+      const invalidPledges = pledges.filter(pledge => pledge.user_id !== user.id);
+      if (invalidPledges.length > 0) {
+        console.error('SECURITY BREACH DETECTED: Found pledges not belonging to user', {
+          userId: user.id,
+          invalidCount: invalidPledges.length
+        });
+        return new Response(
+          JSON.stringify({ error: 'Data validation failed' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
 
     if (pledgeError) {
       console.error('Error fetching pledges:', pledgeError);

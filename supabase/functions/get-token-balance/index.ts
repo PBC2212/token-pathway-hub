@@ -73,10 +73,38 @@ Deno.serve(async (req) => {
     }
 
     // CRITICAL: Get only this user's token balances by wallet address
+    const userWalletAddress = userProfile.wallet_address;
+    if (!userWalletAddress) {
+      return new Response(
+        JSON.stringify({ 
+          error: 'No wallet address found for user',
+          balances: [],
+          totalUsdValue: 0
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
     const { data: balances, error: balanceError } = await supabase
       .from('token_balances')
       .select('*')
-      .eq('user_address', userProfile.wallet_address || ''); // Filter by user's wallet address
+      .eq('user_address', userWalletAddress);
+      
+    // SECURITY VALIDATION: Ensure all returned balances belong to user's wallet
+    if (balances) {
+      const invalidBalances = balances.filter(balance => balance.user_address !== userWalletAddress);
+      if (invalidBalances.length > 0) {
+        console.error('SECURITY BREACH DETECTED: Found balances not belonging to user wallet', {
+          userId: user.id,
+          userWallet: userWalletAddress,
+          invalidCount: invalidBalances.length
+        });
+        return new Response(
+          JSON.stringify({ error: 'Data validation failed' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
 
     if (balanceError) {
       console.error('Error fetching token balances:', balanceError);
