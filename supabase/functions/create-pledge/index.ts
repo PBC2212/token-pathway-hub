@@ -82,10 +82,37 @@ serve(async (req) => {
   }
 
   try {
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
+    // Get authorization header first
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Missing authorization header' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Initialize Supabase client with anon key to respect RLS policies
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: {
+        headers: {
+          Authorization: authHeader
+        }
+      }
+    });
+
+    // Verify user authentication first
+    const { data: { user }, error: authError } = await supabase.auth.getUser(
+      authHeader.replace('Bearer ', '')
+    );
+
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid authorization' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     const pledgeData: PledgeRequest = await req.json()
 
@@ -157,23 +184,15 @@ serve(async (req) => {
       throw new Error('ltv_ratio must be between 0 and 10000 basis points (0% - 100%)')
     }
 
+    // Validate contract address if provided (must match deployed contract)
+    const expectedContractAddress = '0x7a408cadbC99EE39A0E01f4Cdb10139601163407';
+    if (pledgeData.contract_address && pledgeData.contract_address.toLowerCase() !== expectedContractAddress.toLowerCase()) {
+      throw new Error(`Invalid contract address. Expected: ${expectedContractAddress}`)
+    }
+
     // Get category token symbol
     const categoryTokenInfo = CATEGORY_TOKEN_MAPPING[rwaCategory];
     const categoryTokenSymbol = categoryTokenInfo.symbol;
-
-    const authHeader = req.headers.get('Authorization')
-    if (!authHeader) {
-      throw new Error('Authorization header required')
-    }
-
-    // Verify user authentication
-    const { data: { user }, error: authError } = await supabase.auth.getUser(
-      authHeader.replace('Bearer ', '')
-    )
-
-    if (authError || !user) {
-      throw new Error('Invalid authorization token')
-    }
 
     // Check if blockchain integration is enabled
     const isBlockchainEnabled = !!(
