@@ -14,6 +14,7 @@ interface AdminOperationRequest {
   tokenAmount?: number;
   rejectionReason?: string;
   newStatus?: string;
+  limit?: number;
 }
 
 Deno.serve(async (req) => {
@@ -77,7 +78,7 @@ Deno.serve(async (req) => {
         result = await updatePledgeStatus(supabase, requestData, user.id);
         break;
       case 'get_all_pledges':
-        result = await getAllPledges(supabase);
+        result = await getAllPledges(supabase, requestData.limit);
         break;
       case 'get_blockchain_transactions':
         result = await getBlockchainTransactions(supabase);
@@ -289,12 +290,16 @@ async function createAuditLog(supabase: any, logData: {
   }
 }
 
-// SECURITY: Admin-only function to get all pledges
-async function getAllPledges(supabase: any) {
+// SECURITY: Admin-only function to get all pledges with pagination
+async function getAllPledges(supabase: any, limit: number = 50) {
+  // Enforce maximum limit for security and performance
+  const safeLimit = Math.min(limit, 100);
+  
   const { data: pledges, error } = await supabase
     .from('pledges')
     .select('*')
-    .order('created_at', { ascending: false });
+    .order('created_at', { ascending: false })
+    .limit(safeLimit);
 
   if (error) {
     throw new Error(`Failed to fetch pledges: ${error.message}`);
@@ -302,7 +307,8 @@ async function getAllPledges(supabase: any) {
 
   return {
     pledges: pledges || [],
-    total: pledges?.length || 0
+    total: pledges?.length || 0,
+    limit: safeLimit
   };
 }
 
