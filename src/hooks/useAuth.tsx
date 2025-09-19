@@ -20,30 +20,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Ensure a profile row exists and promote known admin emails
+  // SECURITY FIX: Use secure edge function instead of direct database queries
   const ensureProfile = async (currentUser: User) => {
     try {
-      const { data: existing } = await supabase
-        .from('profiles')
-        .select('id, role, email')
-        .eq('user_id', currentUser.id)
-        .maybeSingle();
-
-      if (!existing) {
-        await supabase.from('profiles').insert({
-          user_id: currentUser.id,
-          email: currentUser.email,
-          full_name: (currentUser.user_metadata as any)?.full_name ?? currentUser.email
-        });
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session?.access_token) {
+        console.warn('No access token available for profile setup');
+        return;
       }
 
-      const email = currentUser.email?.toLowerCase();
-      if (email && ADMIN_EMAILS.has(email)) {
-        await supabase
-          .from('profiles')
-          .update({ role: 'admin', kyc_status: 'approved' })
-          .eq('user_id', currentUser.id);
-      }
+      await supabase.functions.invoke('auth-profile-setup', {
+        headers: {
+          Authorization: `Bearer ${sessionData.session.access_token}`
+        }
+      });
     } catch (e) {
       console.warn('ensureProfile skipped:', e);
     }
