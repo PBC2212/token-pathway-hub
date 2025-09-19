@@ -113,40 +113,40 @@ const AdminDashboard = () => {
         throw new Error('Not authenticated');
       }
 
-      // Check if user is admin
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('user_id', session.session.user.id)
-        .single();
-
-      if (profileError || profile?.role !== 'admin') {
-        throw new Error('Admin access required');
-      }
-
-      // Fetch all pledges
-      const { data: pledgesData, error: pledgesError } = await supabase
-        .from('pledges')
-        .select('*')
-        .order('created_at', { ascending: false });
+      // SECURITY FIX: Use admin-operations function for admin data access
+      // This function verifies admin role and provides secure access to all data
+      
+      // Fetch all pledges through admin function
+      const { data: pledgesResponse, error: pledgesError } = await supabase.functions.invoke('admin-operations', {
+        body: {
+          operation: 'get_all_pledges'
+        },
+        headers: {
+          Authorization: `Bearer ${session.session.access_token}`
+        }
+      });
 
       if (pledgesError) {
-        throw pledgesError;
+        throw new Error(`Failed to fetch pledges: ${pledgesError.message}`);
       }
 
-      setPledges(pledgesData || []);
+      setPledges(pledgesResponse?.data?.pledges || []);
 
-      // Fetch blockchain transactions
-      const { data: transactionsData, error: transactionsError } = await supabase
-        .from('blockchain_transactions')
-        .select('*')
-        .order('created_at', { ascending: false });
+      // Fetch blockchain transactions through admin function
+      const { data: transactionsResponse, error: transactionsError } = await supabase.functions.invoke('admin-operations', {
+        body: {
+          operation: 'get_blockchain_transactions'
+        },
+        headers: {
+          Authorization: `Bearer ${session.session.access_token}`
+        }
+      });
 
       if (transactionsError) {
         console.error('Error fetching transactions:', transactionsError);
         setTransactions([]);
       } else {
-        setTransactions(transactionsData || []);
+        setTransactions(transactionsResponse?.data?.transactions || []);
       }
 
     } catch (error: any) {

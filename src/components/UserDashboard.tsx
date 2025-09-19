@@ -103,67 +103,51 @@ const UserDashboard = () => {
         throw new Error('Not authenticated');
       }
 
-      // Declare normalizedPledges outside the block for proper scoping
+      // SECURITY FIX: Use secure edge functions instead of direct database queries
+      
+      // Fetch pledges using secure get-pledges function
+      const { data: pledgesResponse, error: pledgesError } = await supabase.functions.invoke('get-pledges', {
+        headers: {
+          Authorization: `Bearer ${session.session.access_token}`
+        }
+      });
+
       let normalizedPledges: Pledge[] = [];
-
-      // Fetch pledges using correct user_id field
-      const { data: pledgesData, error: pledgesError } = await supabase
-        .from('pledges')
-        .select('*')
-        .eq('user_id', session.session.user.id)
-        .order('created_at', { ascending: false });
-
+      
       if (pledgesError) {
         console.error('Error fetching pledges:', pledgesError);
         setPledges([]);
       } else {
-        // Convert numeric strings to numbers for proper handling
-        normalizedPledges = pledgesData?.map(pledge => ({
+        // Use pledges from secure function response
+        const pledgesData = pledgesResponse?.pledges || [];
+        normalizedPledges = pledgesData.map((pledge: any) => ({
           ...pledge,
           appraised_value: parseFloat(pledge.appraised_value?.toString() || '0') || 0,
           token_amount: parseFloat(pledge.token_amount?.toString() || '0') || 0,
           ltv_ratio: parseInt(pledge.ltv_ratio?.toString() || '8000') || 8000
-        })) || [];
+        }));
         setPledges(normalizedPledges);
       }
 
-      // Get user's wallet address from profile first, then fetch token balances
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('wallet_address')
-        .eq('user_id', session.session.user.id)
-        .single();
-      
+      // Fetch token balances using secure get-token-balance function
+      const { data: balanceResponse, error: balanceError } = await supabase.functions.invoke('get-token-balance', {
+        headers: {
+          Authorization: `Bearer ${session.session.access_token}`
+        }
+      });
+
       let balancesData = [];
-      let balancesError = null;
       
-      if (profileData?.wallet_address) {
-        const { data, error } = await supabase
-          .from('token_balances')
-          .select('*')
-          .eq('user_address', profileData.wallet_address);
-        
-        // Convert balance strings to numbers for proper calculations
-        balancesData = data?.map(balance => ({
+      if (balanceError) {
+        console.error('Error fetching token balances:', balanceError);
+        setTokenBalances([]);
+      } else {
+        // Use balances from secure function response
+        balancesData = balanceResponse?.balances?.map((balance: any) => ({
           ...balance,
           balance: parseFloat(balance.balance?.toString() || '0')
         })) || [];
-        balancesError = error;
-      } else {
-        // Handle missing wallet address gracefully with user feedback
-        console.warn('No wallet address found for user. Token balances unavailable.');
-        toast({
-          variant: "destructive",
-          title: "Wallet Address Missing",
-          description: "Please add your wallet address to your profile to view token balances.",
-        });
-      }
-
-      if (balancesError) {
-        console.error('Error fetching token balances:', balancesError);
-        setTokenBalances([]);
-      } else {
-        setTokenBalances(balancesData || []);
+        setTokenBalances(balancesData);
       }
 
       // Calculate stats using normalized data for correct numeric calculations

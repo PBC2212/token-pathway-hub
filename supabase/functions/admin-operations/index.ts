@@ -6,8 +6,8 @@ const corsHeaders = {
 };
 
 interface AdminOperationRequest {
-  operation: 'approve_pledge' | 'reject_pledge' | 'update_pledge_status';
-  pledgeId: string;
+  operation: 'approve_pledge' | 'reject_pledge' | 'update_pledge_status' | 'get_all_pledges' | 'get_blockchain_transactions';
+  pledgeId?: string;
   adminNotes?: string;
   tokenAmount?: number;
   rejectionReason?: string;
@@ -73,6 +73,12 @@ Deno.serve(async (req) => {
         break;
       case 'update_pledge_status':
         result = await updatePledgeStatus(supabase, requestData, user.id);
+        break;
+      case 'get_all_pledges':
+        result = await getAllPledges(supabase);
+        break;
+      case 'get_blockchain_transactions':
+        result = await getBlockchainTransactions(supabase);
         break;
       default:
         throw new Error(`Unknown operation: ${requestData.operation}`);
@@ -279,4 +285,38 @@ async function createAuditLog(supabase: any, logData: {
   if (error) {
     console.error('Failed to create audit log:', error);
   }
+}
+
+// SECURITY: Admin-only function to get all pledges
+async function getAllPledges(supabase: any) {
+  const { data: pledges, error } = await supabase
+    .from('pledges')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    throw new Error(`Failed to fetch pledges: ${error.message}`);
+  }
+
+  return {
+    pledges: pledges || [],
+    total: pledges?.length || 0
+  };
+}
+
+// SECURITY: Admin-only function to get all blockchain transactions  
+async function getBlockchainTransactions(supabase: any) {
+  const { data: transactions, error } = await supabase
+    .from('blockchain_transactions')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    throw new Error(`Failed to fetch transactions: ${error.message}`);
+  }
+
+  return {
+    transactions: transactions || [],
+    total: transactions?.length || 0
+  };
 }
