@@ -136,7 +136,7 @@ const Index = () => {
             </div>
             
             <h1 className="text-5xl lg:text-6xl font-bold tracking-tight">
-              <span className="text-primary">RWA Tokenization</span> Platform
+              <span className="text-black dark:text-white">RWA Tokenization</span> Platform
             </h1>
             
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
