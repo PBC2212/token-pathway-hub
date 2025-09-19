@@ -101,67 +101,19 @@ const TokenDashboard = () => {
     }
   }, [autoRefresh, walletAddress]);
 
-  // Listen for real-time updates from Supabase
-  useEffect(() => {
-    if (!user || !walletAddress) return;
-
-    const channel = supabase
-      .channel('token-dashboard-updates')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'pledges',
-          filter: `user_address=eq.${walletAddress}`
-        },
-        (payload) => {
-          console.log('Pledge update received:', payload);
-          fetchUserData(walletAddress, false);
-          toast({
-            title: "Update Received",
-            description: "Your dashboard has been updated with new data.",
-          });
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'token_balances',
-          filter: `user_address=eq.${walletAddress}`
-        },
-        (payload) => {
-          console.log('Balance update received:', payload);
-          fetchUserData(walletAddress, false);
-          toast({
-            title: "Balance Updated",
-            description: "Your token balances have been updated.",
-          });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user, walletAddress]);
+  // SECURITY FIX: Disable direct realtime subscriptions to prevent data leakage
+  // TODO: Implement secure server-side realtime using JWT-based channel authentication
+  // Real-time updates temporarily disabled for security - use auto-refresh instead
 
   useEffect(() => {
-    // Load user data on component mount
+    // SECURITY FIX: Load user data securely without hardcoded addresses or direct profile queries
     const loadUserData = async () => {
       if (!user) return;
       
       try {
-        // Try to get wallet address from user profile
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('wallet_address')
-          .eq('user_id', user.id)
-          .single();
-
-        const address = profile?.wallet_address || '0x742d35Cc6634C0532925a3b8D0b5D71c1A37bb2C';
+        // Use user.id as wallet address (secure user identifier) 
+        // Remove hardcoded fallback address to prevent data leakage
+        const address = user.id;
         setWalletAddress(address);
         fetchUserData(address);
       } catch (error) {
@@ -189,9 +141,11 @@ const TokenDashboard = () => {
         return;
       }
 
-      // Fetch pledges (no need to pass address - RLS handles user filtering)
+      // Fetch pledges using secure edge function with explicit auth
       const { data: pledgesResponse, error: pledgesError } = await supabase.functions.invoke('get-pledges', {
-        body: {}
+        headers: {
+          Authorization: `Bearer ${session.access_token}`
+        }
       });
 
       if (pledgesError) {
@@ -205,9 +159,11 @@ const TokenDashboard = () => {
         setPledgeData(pledgesResponse);
       }
 
-      // Fetch token balances (no need to pass address - RLS handles user filtering)
+      // Fetch token balances using secure edge function with explicit auth
       const { data: balancesResponse, error: balancesError } = await supabase.functions.invoke('get-token-balance', {
-        body: {}
+        headers: {
+          Authorization: `Bearer ${session.access_token}`
+        }
       });
 
       if (balancesError) {
