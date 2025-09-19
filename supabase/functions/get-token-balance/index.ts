@@ -49,49 +49,19 @@ Deno.serve(async (req) => {
       // GET request or no body - that's fine
     }
 
-    // Get user's wallet address for filtering token balances
-    const { data: userProfile, error: profileError } = await supabase
-      .from('profiles')
-      .select('wallet_address')
-      .eq('user_id', user.id)
-      .single();
-
-    if (profileError) {
-      console.error('Error fetching user profile:', profileError);
-      return new Response(
-        JSON.stringify({ 
-          error: 'Failed to fetch user profile',
-          details: profileError.message 
-        }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    // CRITICAL: Get only this user's token balances by wallet address
-    const userWalletAddress = userProfile.wallet_address;
-    if (!userWalletAddress) {
-      return new Response(
-        JSON.stringify({ 
-          error: 'No wallet address found for user',
-          balances: [],
-          totalUsdValue: 0
-        }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-    
+    // CRITICAL SECURITY FIX: Get token balances by user_id instead of wallet_address
+    // This prevents users from seeing other users' token balances even if they spoof wallet addresses
     const { data: balances, error: balanceError } = await supabase
       .from('token_balances')
       .select('*')
-      .eq('user_address', userWalletAddress);
+      .eq('user_id', user.id); // SECURE: Filter by authenticated user_id only
       
-    // SECURITY VALIDATION: Ensure all returned balances belong to user's wallet
+    // SECURITY VALIDATION: Final check all returned data belongs to requesting user
     if (balances) {
-      const invalidBalances = balances.filter(balance => balance.user_address !== userWalletAddress);
+      const invalidBalances = balances.filter(balance => balance.user_id !== user.id);
       if (invalidBalances.length > 0) {
-        console.error('SECURITY BREACH DETECTED: Found balances not belonging to user wallet', {
+        console.error('SECURITY BREACH DETECTED: Found balances not belonging to user', {
           userId: user.id,
-          userWallet: userWalletAddress,
           invalidCount: invalidBalances.length
         });
         return new Response(

@@ -104,9 +104,10 @@ export const pledges = pgTable('pledges', {
   updated_at: timestamp('updated_at', { withTimezone: true }).notNull().default(sql`now()`)
 });
 
-// Token balances table
+// Token balances table - SECURITY CRITICAL: user_id required for data isolation
 export const token_balances = pgTable('token_balances', {
   id: uuid('id').primaryKey().default(sql`gen_random_uuid()`),
+  user_id: uuid('user_id').notNull(), // CRITICAL: Filter by user_id to prevent data leakage
   user_address: text('user_address').notNull(),
   token_symbol: text('token_symbol').notNull(),
   balance: numeric('balance').notNull().default('0'),
