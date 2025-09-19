@@ -74,21 +74,30 @@ const MintTokensManager = () => {
     try {
       setLoading(true);
       
-      // Use Supabase client for proper typing and consistency
-      const { data, error } = await supabase
-        .from('pledges')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('status', 'approved')
-        .eq('token_minted', false)
-        .order('created_at', { ascending: false });
+      // SECURITY FIX: Use secure edge function instead of direct database query
+      const { data: session } = await supabase.auth.getSession();
+      if (!session.session?.access_token) {
+        throw new Error('Not authenticated');
+      }
+
+      const { data: pledgeResponse, error } = await supabase.functions.invoke('get-pledges', {
+        headers: {
+          Authorization: `Bearer ${session.session.access_token}`
+        }
+      });
 
       if (error) {
         throw new Error(`Failed to fetch pledges: ${error.message}`);
       }
 
+      // Filter for approved pledges that haven't been minted yet
+      const filteredPledges = (pledgeResponse?.pledges || []).filter((pledge: any) => 
+        pledge.status === 'approved' && 
+        pledge.token_minted === false
+      );
+
       // Transform data to match PledgeData interface and normalize numeric fields
-      const transformedData = data?.map(pledge => ({
+      const transformedData = filteredPledges?.map((pledge: any) => ({
         ...pledge,
         token_minted: pledge.token_minted ?? false,
         rwa_category: pledge.rwa_category || 'Other',
