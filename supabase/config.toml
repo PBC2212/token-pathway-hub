@@ -9,12 +9,11 @@ max_rows = 1000
 
 [auth]
 enabled = true
-port = 9999
 site_url = "http://localhost:3000"
 additional_redirect_urls = ["https://localhost:3000"]
 jwt_expiry = 3600
-enable_anonymous_users = false
-enable_email_confirmations = false
+enable_signup = true
+enable_anonymous_sign_ins = false
 
 [auth.email]
 enable_signup = true
@@ -33,16 +32,13 @@ max_client_conn = 100
 
 [realtime]
 enabled = true
-port = 54324
 
 [storage]
 enabled = true
-port = 54325
 file_size_limit = "50MiB"
 
-[edge_functions]
+[edge_runtime]
 enabled = true
-port = 54323
 
 [functions.cognito-webhook]
 verify_jwt = false
