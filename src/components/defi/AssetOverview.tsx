@@ -60,26 +60,39 @@ const AssetOverview = () => {
     try {
       setLoading(true);
 
-      // Fetch token balances
-      const { data: balanceData, error: balanceError } = await supabase
-        .from('token_balances')
-        .select('*')
-        .eq('user_address', user.id);
-
-      if (balanceError) {
-        console.error('Error fetching balances:', balanceError);
-        return;
+      // SECURITY FIX: Use secure edge functions instead of direct database queries
+      const { data: session } = await supabase.auth.getSession();
+      if (!session.session?.access_token) {
+        throw new Error('Not authenticated');
       }
 
-      // Fetch pledges for context
-      const { data: pledgeData, error: pledgeError } = await supabase
-        .from('pledges')
-        .select('*')
-        .eq('user_address', user.id)
-        .eq('status', 'approved');
+      // Fetch token balances through secure edge function
+      const { data: balanceResponse, error: balanceError } = await supabase.functions.invoke('get-token-balance', {
+        headers: {
+          Authorization: `Bearer ${session.session.access_token}`
+        }
+      });
 
+      let balanceData = [];
+      if (balanceError) {
+        console.error('Error fetching balances:', balanceError);
+      } else {
+        balanceData = balanceResponse?.balances || [];
+      }
+
+      // Fetch pledges through secure edge function
+      const { data: pledgeResponse, error: pledgeError } = await supabase.functions.invoke('get-pledges', {
+        headers: {
+          Authorization: `Bearer ${session.session.access_token}`
+        }
+      });
+
+      let pledgeData = [];
       if (pledgeError) {
         console.error('Error fetching pledges:', pledgeError);
+      } else {
+        // Filter only approved pledges
+        pledgeData = (pledgeResponse?.pledges || []).filter((pledge: any) => pledge.status === 'approved');
       }
 
       // Transform data for display
