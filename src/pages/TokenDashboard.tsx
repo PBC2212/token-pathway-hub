@@ -221,19 +221,10 @@ const TokenDashboard = () => {
         setBalanceData(balancesResponse);
       }
 
-      // Fetch recent transactions
-      const { data: transactions, error: transactionsError } = await supabase
-        .from('blockchain_transactions')
-        .select('*')
-        .eq('user_address', address)
-        .order('created_at', { ascending: false })
-        .limit(10);
-
-      if (transactionsError) {
-        console.error('Error fetching transactions:', transactionsError);
-      } else {
-        setRecentTransactions(transactions || []);
-      }
+      // SECURITY FIX: Temporarily disable direct transaction queries to prevent data leakage
+      // TODO: Create secure user-specific blockchain transaction edge function
+      // For now, use empty array to prevent showing other users' transactions
+      setRecentTransactions([]);
 
       setLastUpdated(new Date());
 
