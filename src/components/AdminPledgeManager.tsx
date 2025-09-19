@@ -117,27 +117,29 @@ const AdminPledgeManager: React.FC = () => {
         throw new Error('Not authenticated');
       }
 
-      // Use the new ultra-secure v2 function for accessing pledge data
-      const { data: secureData, error: secureError } = await supabase.rpc(
-        'get_pledges_ultra_secure_v2',
-        { 
-          p_access_justification: 'Admin dashboard review for compliance monitoring and pledge status management',
-          p_limit: 50
+      // Use the secure admin-operations edge function for accessing pledge data
+      const { data: secureData, error: secureError } = await supabase.functions.invoke('admin-operations', {
+        body: { 
+          operation: 'get_all_pledges',
+          access_justification: 'Admin dashboard review for compliance monitoring and pledge status management',
+          limit: 50
+        },
+        headers: {
+          Authorization: `Bearer ${session.session.access_token}`
         }
-      );
+      });
 
       if (secureError) {
         throw secureError;
       }
 
       // Transform the secure data to match our interface  
-      const pledgesWithUserInfo: PledgeWithUserInfo[] = secureData?.map((pledge: any) => ({
+      const pledgesWithUserInfo: PledgeWithUserInfo[] = secureData?.data?.pledges?.map((pledge: any) => ({
         ...pledge,
         user_email: 'Protected for Privacy',
         user_name: 'Protected for Privacy',
-        appraised_value: 0, // Not available in secure mode
-        appraised_value_display: pledge.risk_category || 'Protected Value',
-        user_address: 'Protected Address'
+        appraised_value: parseFloat(pledge.appraised_value?.toString() || '0') || 0,
+        user_address: pledge.user_address || 'Protected Address'
       })) || [];
 
       setPledges(pledgesWithUserInfo);
