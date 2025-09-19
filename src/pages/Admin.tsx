@@ -29,14 +29,22 @@ const Admin = () => {
 
   const checkAdminAccess = async () => {
     try {
-      const { data: profileData, error } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('user_id', user.id)
-        .single();
+      // SECURITY FIX: Use secure edge function instead of direct database query
+      const { data: session } = await supabase.auth.getSession();
+      if (!session.session?.access_token) {
+        navigate('/dashboard');
+        return;
+      }
 
-      if (error) {
-        console.error('Error fetching profile:', error);
+      const { data: response, error } = await supabase.functions.invoke('get-user-profile', {
+        body: { operation: 'get_profile' },
+        headers: {
+          Authorization: `Bearer ${session.session.access_token}`
+        }
+      });
+
+      if (error || !response.success) {
+        console.error('Error fetching profile:', error || response.error);
         toast({
           title: 'Access Error',
           description: 'Could not verify admin permissions',
@@ -46,9 +54,9 @@ const Admin = () => {
         return;
       }
 
-      setProfile(profileData);
+      setProfile(response.profile);
       
-      if (profileData?.role !== 'admin') {
+      if (response.profile?.role !== 'admin') {
         toast({
           title: 'Access Denied',
           description: 'You do not have admin permissions',

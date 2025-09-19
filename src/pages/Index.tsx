@@ -23,13 +23,25 @@ const Index = () => {
     }
 
     try {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('user_id', user.id)
-        .single();
-      
-      setUserProfile(profile);
+      // SECURITY FIX: Use secure edge function instead of direct database query
+      const { data: session } = await supabase.auth.getSession();
+      if (!session.session?.access_token) {
+        setLoading(false);
+        return;
+      }
+
+      const { data: response, error } = await supabase.functions.invoke('get-user-profile', {
+        body: { operation: 'get_profile' },
+        headers: {
+          Authorization: `Bearer ${session.session.access_token}`
+        }
+      });
+
+      if (error || !response.success) {
+        console.error('Error fetching user profile:', error || response.error);
+      } else {
+        setUserProfile(response.profile);
+      }
     } catch (error) {
       console.error('Error fetching user profile:', error);
     } finally {
