@@ -1,0 +1,23 @@
+dashboard:1 Access to fetch at 'https://fdbcuegidxvdanpoqztv.supabase.co/functions/v1/auth-profile-setup' from origin 'https://imecapitaltokenization.com' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: It does not have HTTP ok status.
+fdbcuegidxvdanpoqztv.supabase.co/functions/v1/auth-profile-setup:1  Failed to load resource: net::ERR_FAILED
+dashboard:1 Access to fetch at 'https://fdbcuegidxvdanpoqztv.supabase.co/functions/v1/get-user-profile' from origin 'https://imecapitaltokenization.com' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: It does not have HTTP ok status.
+fdbcuegidxvdanpoqztv.supabase.co/functions/v1/get-user-profile:1  Failed to load resource: net::ERR_FAILED
+index-DrtJj1II.js:481 Error fetching profile: FunctionsFetchError: Failed to send a request to the Edge Function
+    at index-DrtJj1II.js:413:5953
+$ @ index-DrtJj1II.js:481
+index-DrtJj1II.js:481 Pledges fetched successfully: Object
+index-DrtJj1II.js:481 Full name input changed: imecapitaltrustllc@gmail.com
+index-DrtJj1II.js:481 Current password changed
+content.js:1 Disconnected from polkadot{.js}-0x6e10e163a1550e8d-content
+dashboard:1 Access to fetch at 'https://fdbcuegidxvdanpoqztv.supabase.co/functions/v1/get-user-profile' from origin 'https://imecapitaltokenization.com' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: It does not have HTTP ok status.
+fdbcuegidxvdanpoqztv.supabase.co/functions/v1/get-user-profile:1  Failed to load resource: net::ERR_FAILED
+index-DrtJj1II.js:481 Error fetching profile: FunctionsFetchError: Failed to send a request to the Edge Function
+    at index-DrtJj1II.js:413:5953
+$ @ index-DrtJj1II.js:481
+index-DrtJj1II.js:481 Pledges fetched successfully: Object
+fdbcuegidxvdanpoqztv.supabase.co/functions/v1/create-pledge:1  Failed to load resource: the server responded with a status of 400 ()
+index-DrtJj1II.js:486 Error submitting pledge: FunctionsHttpError: Edge Function returned a non-2xx status code
+    at OP.<anonymous> (index-DrtJj1II.js:413:6046)
+    at Generator.next (<anonymous>)
+    at l (index-DrtJj1II.js:413:4855)
+_ @ index-DrtJj1II.js:486
