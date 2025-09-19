@@ -14,11 +14,7 @@ serve(async (req) => {
   try {
     console.log('Get pools request received');
     
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
-
-    // Authenticate user
+    // Get authorization header first
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { 
@@ -27,8 +23,20 @@ serve(async (req) => {
       });
     }
 
+    // Use anon key to respect RLS policies for user data
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: {
+        headers: {
+          Authorization: authHeader
+        }
+      }
+    });
+
+    // Authenticate user
     const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
+    const { data: { user }, error } = await supabase.auth.getUser(token);
     if (error || !user) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { 
         status: 401, 
@@ -38,9 +46,10 @@ serve(async (req) => {
 
     const url = new URL(req.url);
     const poolId = url.searchParams.get('poolId');
-    const userOnly = url.searchParams.get('userOnly') === 'true';
-
-    let query = supabaseAdmin.from('liquidity_pools').select(`
+    const adminView = url.searchParams.get('adminView') === 'true';
+    
+    // CRITICAL: Default to user-only view for security
+    let query = supabase.from('liquidity_pools').select(`
       *,
       liquidity_operations (
         id,
@@ -52,11 +61,18 @@ serve(async (req) => {
       )
     `);
 
-    if (poolId) {
-      query = query.eq('id', poolId);
+    // ALWAYS filter by user_id unless admin is explicitly requesting admin view
+    if (!adminView) {
+      query = query.eq('user_id', user.id);
+    } else {
+      // TODO: Add admin role verification here for admin view
+      console.warn('Admin view requested but admin verification not implemented');
+      query = query.eq('user_id', user.id); // Default to user view for now
     }
 
-    if (userOnly) {
+    if (poolId) {
+      query = query.eq('id', poolId);
+      // For specific pool ID, still ensure user ownership
       query = query.eq('user_id', user.id);
     }
 

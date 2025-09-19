@@ -12,12 +12,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Initialize Supabase client
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    // Get authorization header
+    // Get authorization header first
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       return new Response(
@@ -25,6 +20,17 @@ Deno.serve(async (req) => {
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    // Initialize Supabase client with anon key to respect RLS policies
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: {
+        headers: {
+          Authorization: authHeader
+        }
+      }
+    });
 
     // Verify user authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser(
@@ -48,10 +54,29 @@ Deno.serve(async (req) => {
       // GET request or no body - that's fine
     }
 
-    // Get token balances from Supabase using secure RLS authentication
+    // Get user's wallet address for filtering token balances
+    const { data: userProfile, error: profileError } = await supabase
+      .from('profiles')
+      .select('wallet_address')
+      .eq('user_id', user.id)
+      .single();
+
+    if (profileError) {
+      console.error('Error fetching user profile:', profileError);
+      return new Response(
+        JSON.stringify({ 
+          error: 'Failed to fetch user profile',
+          details: profileError.message 
+        }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // CRITICAL: Get only this user's token balances by wallet address
     const { data: balances, error: balanceError } = await supabase
       .from('token_balances')
-      .select('*');
+      .select('*')
+      .eq('user_address', userProfile.wallet_address || ''); // Filter by user's wallet address
 
     if (balanceError) {
       console.error('Error fetching token balances:', balanceError);
@@ -64,10 +89,11 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Calculate total USD value based on pledged assets using secure RLS authentication
+    // CRITICAL: Calculate total USD value ONLY from this user's pledged assets
     const { data: pledges, error: pledgeError } = await supabase
       .from('pledges')
-      .select('appraised_value, token_amount, asset_type');
+      .select('appraised_value, token_amount, asset_type')
+      .eq('user_id', user.id); // CRITICAL: Filter by user_id to prevent data leakage
 
     let totalUsdValue = 0;
     if (!pledgeError && pledges) {
