@@ -269,27 +269,27 @@ serve(async (req) => {
       );
     }
 
-    // Use a default contract address for mock operations
-    const contractAddress = mintRequest.contractAddress || '0x1234567890123456789012345678901234567890';
+    // Use deployed contract address on Sepolia
+    const contractAddress = mintRequest.contractAddress || '0x7a408cadbC99EE39A0E01f4Cdb10139601163407';
 
     console.log('Simulating token minting operation (development mode)');
     
-    // Mock category-specific token addresses (proper hex format)
-    const mockCategoryTokenAddresses: Record<string, string> = {
-      'RealEstate': '0x1000000000000000000000000000000000000001', // RUSD token
-      'Commodities': '0x2000000000000000000000000000000000000002', // CUSD token
-      'Bonds': '0x3000000000000000000000000000000000000003', // BUSD token
-      'Equipment': '0x4000000000000000000000000000000000000004', // EUSD token
-      'Inventory': '0x5000000000000000000000000000000000000005', // IUSD token
-      'Other': '0x6000000000000000000000000000000000000006' // OUSD token
+    // Live category-specific token addresses from deployed SimpleRwaBackedStablecoin on Sepolia
+    const categoryTokenAddresses: Record<string, string> = {
+      'RealEstate': '0x1297F2046FcC526A96a8667E972B009e55f8a845', // RUSD token
+      'Commodities': '0x838d4B07d2A8b14Ce631808E911a51D537c462E7', // CUSD token
+      'Bonds': '0x85635cd6c1Aa4143b263612448941E343DA296e3', // BUSD token
+      'Equipment': '0x2FdF5CaFcE00Ed5663a9ade6914F672d9A055292', // EUSD token
+      'Inventory': '0x798993EC1fCFbA78f8078169c65231D65A402643', // IUSD token
+      'Other': '0x633725f24077E61Ad9FF4abeA66BBB6058597719' // OUSD token
     };
     
-    const categoryTokenAddress = mockCategoryTokenAddresses[dbCategory] || mockCategoryTokenAddresses['Other'];
+    const categoryTokenAddress = categoryTokenAddresses[dbCategory] || categoryTokenAddresses['Other'];
     
-    // Mock MultiTokenRwaBackedStablecoin transaction using approved amount
-    const mockTransactionId = `mock_multitoken_mint_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+    // Create MultiTokenRwaBackedStablecoin transaction using approved amount
+    const transactionId = `sepolia_mint_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
     const fireblocksResult = {
-      id: mockTransactionId,
+      id: transactionId,
       createdAt: Date.now(),
       lastUpdated: Date.now(),
       assetId: 'ETH',

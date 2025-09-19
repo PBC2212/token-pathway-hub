@@ -112,7 +112,7 @@ serve(async (req) => {
           pending: "0",
           frozen: "0",
           lockedAmount: "0",
-          address: "0x1234567890abcdef1234567890abcdef12345678",
+          address: "0x7a408cadbC99EE39A0E01f4Cdb10139601163407",
           tag: ""
         },
         {
@@ -122,7 +122,7 @@ serve(async (req) => {
           pending: "0",
           frozen: "0",
           lockedAmount: "0",
-          address: "0x1234567890abcdef1234567890abcdef12345678",
+          address: "0x7a408cadbC99EE39A0E01f4Cdb10139601163407",
           tag: ""
         },
         {
