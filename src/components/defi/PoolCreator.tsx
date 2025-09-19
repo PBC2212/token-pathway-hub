@@ -46,15 +46,25 @@ const PoolCreator = () => {
     if (!user) return;
 
     try {
-      // Fetch user's token balances
-      const { data: balances, error } = await supabase
-        .from('token_balances')
-        .select('*')
-        .eq('user_address', user.id);
+      // SECURITY FIX: Use secure edge function instead of direct database query
+      const { data: session } = await supabase.auth.getSession();
+      if (!session.session?.access_token) {
+        console.error('Not authenticated');
+        return;
+      }
 
+      const { data: balanceResponse, error } = await supabase.functions.invoke('get-token-balance', {
+        headers: {
+          Authorization: `Bearer ${session.session.access_token}`
+        }
+      });
+
+      let balances = [];
       if (error) {
         console.error('Error fetching token balances:', error);
         return;
+      } else {
+        balances = balanceResponse?.balances || [];
       }
 
       const tokens: TokenOption[] = [
