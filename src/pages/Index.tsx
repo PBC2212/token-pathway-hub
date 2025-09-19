@@ -136,7 +136,7 @@ const Index = () => {
             </div>
             
             <h1 className="text-5xl lg:text-6xl font-bold tracking-tight">
-              Complete <span className="text-primary">RWA Tokenization</span> Platform
+              <span className="text-primary">RWA Tokenization</span> Platform
             </h1>
             
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed">
@@ -185,7 +185,7 @@ const Index = () => {
         <div className="container mx-auto px-4">
           <div className="text-center mb-16">
             <h2 className="text-3xl lg:text-4xl font-bold mb-4">
-              Complete RWA Tokenization Suite
+              RWA Tokenization Suite
             </h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
               Everything you need to tokenize real world assets - from legal compliance to token distribution and ongoing management
