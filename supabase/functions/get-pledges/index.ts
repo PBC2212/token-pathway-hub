@@ -66,19 +66,15 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Initialize Supabase client with anon key to respect RLS policies
+    // Initialize Supabase client with service role key for hybrid setup (Supabase Auth + Neon DB)
+    // Since RLS is disabled on Neon, we use service role + explicit user filtering
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      global: {
-        headers: {
-          Authorization: authHeader
-        }
-      }
-    });
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Verify user authentication
-    const { data: { user }, error: authError } = await supabase.auth.getUser(
+    // Verify user authentication using the provided JWT
+    const authClient = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!);
+    const { data: { user }, error: authError } = await authClient.auth.getUser(
       authHeader.replace('Bearer ', '')
     );
 
