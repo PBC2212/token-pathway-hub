@@ -46,6 +46,8 @@ interface Pledge {
   days_since_created?: number;
   ltv_ratio?: string;
   rejection_reason?: string;
+  token_minted?: boolean;
+  tx_hash?: string;
 }
 
 interface PledgeData {

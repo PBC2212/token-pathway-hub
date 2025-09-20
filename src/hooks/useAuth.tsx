@@ -41,12 +41,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-      if (session?.user) {
-        setTimeout(() => { ensureProfile(session.user!); }, 0);
+      // SECURITY FIX: Clear all user data on auth state change to prevent cross-contamination
+      if (event === 'SIGNED_OUT' || !session) {
+        setSession(null);
+        setUser(null);
+        // Clear any cached data
+        localStorage.removeItem('supabase-auth-token');
+        sessionStorage.clear();
+      } else {
+        setSession(session);
+        setUser(session?.user ?? null);
+        if (session?.user) {
+          setTimeout(() => { ensureProfile(session.user!); }, 0);
+        }
       }
+      setLoading(false);
     });
 
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -109,6 +118,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
+    // SECURITY FIX: Clear all data before signing out
+    setUser(null);
+    setSession(null);
+    localStorage.clear();
+    sessionStorage.clear();
+    
     const { error } = await supabase.auth.signOut();
     if (error) {
       toast({

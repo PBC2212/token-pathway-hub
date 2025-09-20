@@ -129,8 +129,8 @@ const UserDashboard = () => {
         setPledges(normalizedPledges);
       }
 
-      // Fetch token balances using secure get-token-balance function
-      const { data: balanceResponse, error: balanceError } = await supabase.functions.invoke('get-token-balance', {
+      // Fetch token balances using new secure user-only function
+      const { data: balanceResponse, error: balanceError } = await supabase.functions.invoke('get-token-balance-user-only', {
         headers: {
           Authorization: `Bearer ${session.session.access_token}`
         }
